@@ -1,10 +1,27 @@
 #pragma once
+#include <d3d12.h>
+#include <dxgi1_6.h>
+#include <wrl.h>
+
+#include <memory>
+#include <string>
+
 class DxEngine
 {
 public:
-	int test = 1;
+	static DxEngine& Instance();
+	static void Destroy();
+
+private:
+	DxEngine() = default;
+	~DxEngine() = default;
 
 public:
-	void Func();
+
+private:
+
+
+private:
+	static DxEngine* singleton_instance;
 };
 

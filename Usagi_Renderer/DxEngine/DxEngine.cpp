@@ -2,14 +2,20 @@
 //
 
 #include "pch.h"
-#include "framework.h"
 #include "DxEngine.h"
 
-// TODO: This is an example of a library function
-void fnDxEngine()
+DxEngine* DxEngine::singleton_instance = nullptr;
+
+DxEngine& DxEngine::Instance()
 {
+	if(singleton_instance == nullptr)
+	{
+		singleton_instance = new DxEngine;
+	}
+	return *singleton_instance;
 }
 
-void DxEngine::Func()
+void DxEngine::Destroy()
 {
+	delete singleton_instance;
 }
