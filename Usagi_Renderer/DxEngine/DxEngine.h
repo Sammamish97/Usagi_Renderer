@@ -6,22 +6,70 @@
 #include <memory>
 #include <string>
 
+using Microsoft::WRL::ComPtr;
+
+class CommandQueue;
+class IDemo;
+class Window;
+
 class DxEngine
 {
 public:
-	static DxEngine& Instance();
+	static void Create(HINSTANCE hInst);
+	static DxEngine& Get();
 	static void Destroy();
 
-private:
-	DxEngine() = default;
-	~DxEngine() = default;
+public:
+	
+	std::shared_ptr<Window> CreateRenderWindow(const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync = true);
+	void DestroyWindow(std::shared_ptr<Window> window);
+	std::shared_ptr<Window> GetWindowByName(const std::wstring& windowName);
+	int Run(std::shared_ptr<IDemo> pGame);
+	void Quit(int exitCode = 0);
+	void Flush();
+
+	ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(UINT numDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE type);
+	static uint64_t GetFrameCount()
+	{
+		return msFrameCount;
+	}
 
 public:
+	bool IsTearingSupported() const;
+	DXGI_SAMPLE_DESC GetMultisampleQualityLevels(DXGI_FORMAT format, UINT numSamples, D3D12_MULTISAMPLE_QUALITY_LEVEL_FLAGS flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE) const;
+
+	ComPtr<ID3D12Device> GetDevice() const;
+	ComPtr<IDXGIFactory7> GetFactory() const;
+	ComPtr<IDXGISwapChain4> GetSwapChain() const;
+	std::shared_ptr<CommandQueue> GetCommandQueue(D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT) const;
+
+
+	UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const;
+	std::pair<int, int> GetScreenDimension() const;
+
+protected:
+	DxEngine(HINSTANCE hInst);
+	virtual ~DxEngine() = default;
+	void Initialize();
+	ComPtr<IDXGIAdapter4> GetAdapter(bool bUseWarp);
+	ComPtr<ID3D12Device2> CreateDevice(Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter);
+	bool CheckTearingSupport();
 
 private:
+	friend LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
+	DxEngine(const DxEngine& other) = delete;
+	DxEngine& operator=(const DxEngine& other) = delete;
 
+	HINSTANCE mHinstance;
 
-private:
-	static DxEngine* singleton_instance;
+	ComPtr<ID3D12Device> mDevice;
+
+	std::shared_ptr<CommandQueue> mDirectCommandQueue;
+	std::shared_ptr<CommandQueue> mComputeCommandQueue;
+	std::shared_ptr<CommandQueue> mCopyCommandQueue;
+
+	bool mTearingSupported;
+
+	static uint64_t msFrameCount;
 };
 
