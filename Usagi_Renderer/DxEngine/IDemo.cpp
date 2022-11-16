@@ -33,14 +33,6 @@ bool IDemo::Initialize()
     return true;
 }
 
-bool IDemo::LoadContent()
-{
-}
-
-void IDemo::UnloadContent()
-{
-}
-
 void IDemo::Destroy()
 {
     DxEngine::Get().DestroyWindow(m_pWindow);

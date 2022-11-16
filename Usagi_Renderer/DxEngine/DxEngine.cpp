@@ -6,6 +6,7 @@
 #include "BufferFormat.h"
 #include "Window.h"
 #include "IDemo.h"
+#include "CommandQueue.h"
 
 #include <cassert>
 
@@ -18,7 +19,7 @@ static DxEngine* gsSingleTon = nullptr;
 uint64_t DxEngine::msFrameCount = 0;
 
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
-extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+//extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 // A wrapper struct to allow shared pointers for the window class.
 // This is needed because the constructor and destructor for the Window
@@ -109,7 +110,7 @@ void DxEngine::Destroy()
 {
     if (gsSingleTon)
     {
-        assert(gsWindow && "All windows should be destroyed before destroying the application instance.");
+        assert(!gsWindow && "All windows should be destroyed before destroying the application instance.");
 
         delete gsSingleTon;
         gsSingleTon = nullptr;
@@ -129,30 +130,82 @@ DxEngine::~DxEngine()
 std::shared_ptr<Window> DxEngine::CreateRenderWindow(const std::wstring& windowName, int clientWidth, int clientHeight,
 	bool vSync)
 {
+    RECT windowRect = { 0, 0, clientWidth, clientHeight };
+    AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
+
+    HWND hWnd = CreateWindowW(WINDOW_CLASS_NAME, windowName.c_str(),
+        WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
+        windowRect.right - windowRect.left,
+        windowRect.bottom - windowRect.top,
+        nullptr, nullptr, mHinstance, nullptr);
+
+    if (!hWnd)
+    {
+        MessageBoxA(NULL, "Could not create the render window.", "Error", MB_OK | MB_ICONERROR);
+        return nullptr;
+    }
+
+    return std::make_shared<MakeWindow>(hWnd, windowName, clientWidth, clientHeight, vSync);
 }
 
 void DxEngine::DestroyWindow(std::shared_ptr<Window> window)
 {
+    gsWindow->Destroy();
 }
 
 std::shared_ptr<Window> DxEngine::GetWindowByName(const std::wstring& windowName)
 {
+    return gsWindow;
 }
 
 int DxEngine::Run(std::shared_ptr<IDemo> pGame)
 {
+    if (!pGame->Initialize()) return 1;
+    if (!pGame->LoadContent()) return 2;
+
+    MSG msg = { 0 };
+    while (msg.message != WM_QUIT)
+    {
+        if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
+        {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+    }
+
+    // Flush any commands in the commands queues before quiting.
+    Flush();
+
+    pGame->UnloadContent();
+    pGame->Destroy();
+
+    return static_cast<int>(msg.wParam);
 }
 
 void DxEngine::Quit(int exitCode)
 {
+    PostQuitMessage(exitCode);
 }
 
 void DxEngine::Flush()
 {
+    mDirectCommandQueue->Flush();
+    mComputeCommandQueue->Flush();
+    mCopyCommandQueue->Flush();
 }
 
 ComPtr<ID3D12DescriptorHeap> DxEngine::CreateDescriptorHeap(UINT numDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE type)
 {
+    D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+    desc.Type = type;
+    desc.NumDescriptors = numDescriptors;
+    desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    desc.NodeMask = 0;
+
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap;
+    ThrowIfFailed(mDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptorHeap)));
+
+    return descriptorHeap;
 }
 
 bool DxEngine::IsTearingSupported() const
@@ -321,12 +374,44 @@ bool DxEngine::CheckTearingSupport()
 
     return allowTearing == TRUE;
 }
+
+MouseButtonEventArgs::MouseButton DecodeMouseButton(UINT messageID)
+{
+    MouseButtonEventArgs::MouseButton mouseButton = MouseButtonEventArgs::None;
+    switch (messageID)
+    {
+    case WM_LBUTTONDOWN:
+    case WM_LBUTTONUP:
+    case WM_LBUTTONDBLCLK:
+    {
+        mouseButton = MouseButtonEventArgs::Left;
+    }
+    break;
+    case WM_RBUTTONDOWN:
+    case WM_RBUTTONUP:
+    case WM_RBUTTONDBLCLK:
+    {
+        mouseButton = MouseButtonEventArgs::Right;
+    }
+    break;
+    case WM_MBUTTONDOWN:
+    case WM_MBUTTONUP:
+    case WM_MBUTTONDBLCLK:
+    {
+        mouseButton = MouseButtonEventArgs::Middel;
+    }
+    break;
+    }
+
+    return mouseButton;
+}
+
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    if (ImGui_ImplWin32_WndProcHandler(hwnd, message, wParam, lParam))
+    /*if (ImGui_ImplWin32_WndProcHandler(hwnd, message, wParam, lParam))
     {
         return true;
-    }
+    }*/
 
     auto pWindow = gsWindow;
     if (gsWindow)
@@ -510,38 +595,4 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
     }
 
     return 0;
-}
-
-LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-}
-MouseButtonEventArgs::MouseButton DecodeMouseButton(UINT messageID)
-{
-    MouseButtonEventArgs::MouseButton mouseButton = MouseButtonEventArgs::None;
-    switch (messageID)
-    {
-    case WM_LBUTTONDOWN:
-    case WM_LBUTTONUP:
-    case WM_LBUTTONDBLCLK:
-    {
-        mouseButton = MouseButtonEventArgs::Left;
-    }
-    break;
-    case WM_RBUTTONDOWN:
-    case WM_RBUTTONUP:
-    case WM_RBUTTONDBLCLK:
-    {
-        mouseButton = MouseButtonEventArgs::Right;
-    }
-    break;
-    case WM_MBUTTONDOWN:
-    case WM_MBUTTONUP:
-    case WM_MBUTTONDBLCLK:
-    {
-        mouseButton = MouseButtonEventArgs::Middel;
-    }
-    break;
-    }
-
-    return mouseButton;
 }

@@ -43,7 +43,7 @@ public:
 
 protected:
 	DxEngine(HINSTANCE hInst);
-	virtual ~DxEngine() = default;
+	virtual ~DxEngine();
 	void Initialize();
 	ComPtr<IDXGIAdapter4> GetAdapter(bool bUseWarp);
 	ComPtr<ID3D12Device2> CreateDevice(Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter);

@@ -250,4 +250,5 @@ UINT Window::Present(const Texture& texture)
     }
 
     //TODO
+    return 0;
 }
