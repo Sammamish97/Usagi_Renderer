@@ -37,15 +37,9 @@ public:
 public:
 	bool IsTearingSupported() const;
 	DXGI_SAMPLE_DESC GetMultisampleQualityLevels(DXGI_FORMAT format, UINT numSamples, D3D12_MULTISAMPLE_QUALITY_LEVEL_FLAGS flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE) const;
-
-	ComPtr<ID3D12Device> GetDevice() const;
-	ComPtr<IDXGIFactory7> GetFactory() const;
-	ComPtr<IDXGISwapChain4> GetSwapChain() const;
 	std::shared_ptr<CommandQueue> GetCommandQueue(D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT) const;
-
-
 	UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const;
-	std::pair<int, int> GetScreenDimension() const;
+	ComPtr<ID3D12Device2> GetDevice() const;
 
 protected:
 	DxEngine(HINSTANCE hInst);
@@ -62,7 +56,7 @@ private:
 
 	HINSTANCE mHinstance;
 
-	ComPtr<ID3D12Device> mDevice;
+	ComPtr<ID3D12Device2> mDevice;
 
 	std::shared_ptr<CommandQueue> mDirectCommandQueue;
 	std::shared_ptr<CommandQueue> mComputeCommandQueue;

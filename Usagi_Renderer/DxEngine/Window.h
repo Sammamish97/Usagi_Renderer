@@ -36,12 +36,6 @@ public:
 	void SetVSync(bool vSync);
 	void ToggleVSync();
 
-	bool IsFullScreen() const;
-
-	// Set the fullscreen state of the window.
-	void SetFullscreen(bool fullscreen);
-	void ToggleFullscreen();
-
 	void Show();
 	void Hide();
 	const RenderTarget& GetRenderTarget() const;
