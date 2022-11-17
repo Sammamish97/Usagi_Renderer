@@ -1,8 +1,13 @@
 #pragma once
+#define NOMINMAX
 #include "IDemo.h"
 #include "RenderTarget.h"
 #include "Texture.h"
 #include "Camera.h"
+#include "DescriptorHeap.h"
+#include "ForwardPass.h"
+
+#include <map>
 struct CommonCB
 {
     XMFLOAT4X4 View = MathHelper::Identity4x4();
@@ -34,6 +39,7 @@ struct DirectLight
 using Microsoft::WRL::ComPtr;
 
 class Object;
+class Model;
 class IKDemo : public IDemo
 {
 public:
@@ -44,27 +50,30 @@ public:
 	void OnRender(RenderEventArgs& e);
 
 private:
-    void InitPSO();
-    void InitRootSignature();
-    void InitDescriptors();
+    void InitDescriptorHeaps();
+    void InitRenderTarget();
+    void UpdateConstantBuffer();
 
 private:
 	ComPtr<ID3D12RootSignature> mRootSignature;
 	ComPtr<ID3D12PipelineState> mPipelineState;
 
-    ComPtr<ID3D12DescriptorHeap> mRtvDescHeap;
-    ComPtr<ID3D12DescriptorHeap> mDsvDescHeap;
-    ComPtr<ID3D12DescriptorHeap> mCbvSrvUavHeap;
+    std::map<HeapType, std::shared_ptr<DescriptorHeap>> mDescriptorHeaps;
 
     RenderTarget mRenderTarget;
+    UINT mRtvIdx;
+    UINT mDsvIdx;
 
     CommonCB mCommonCB;
     int mCommonIdx;
     DirectLight mLightCB;
     int mLightIdx;
     
-    std::vector<Object> mObjects;
+    std::vector<std::shared_ptr<Object>> mObjects;
     std::unordered_map<std::string, ComPtr<ID3DBlob>> mShaders;
+    std::unordered_map<std::string, std::shared_ptr<Model>> mModels;
+
+    std::unique_ptr<ForwardPass> mForwardPass;
 
 	D3D12_VIEWPORT m_Viewport;
 	D3D12_RECT m_ScissorRect;

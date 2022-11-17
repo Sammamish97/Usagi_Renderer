@@ -9,6 +9,8 @@
 
 #include "TextureUsage.h"
 
+using Microsoft::WRL::ComPtr;
+
 class UploadBuffer;
 class Buffer;
 class Texture;
@@ -19,7 +21,6 @@ class VertexBuffer;
 class RenderTarget;
 class Resource;
 class ResourceStateTracker;
-
 class CommandList
 {
 public:
@@ -90,7 +91,6 @@ public:
     void ClearTexture(const Texture& texture, const float clearColor[4]);
     void ClearDepthStencilTexture(const Texture& texture, D3D12_CLEAR_FLAGS clearFlags, float depth = 1.0f, uint8_t stencil = 0);
 
-
     void CopyTextureSubresource(Texture& texture, uint32_t firstSubresource, uint32_t numSubresources, D3D12_SUBRESOURCE_DATA* subresourceData);
 
  
@@ -151,7 +151,8 @@ public:
     void SetScissorRect(const D3D12_RECT& scissorRect);
     void SetScissorRects(const std::vector<D3D12_RECT>& scissorRects);
 
-    void SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState);
+    void SetPipelineState(ComPtr<ID3D12PipelineState> pipelineState);
+    void SetGraphicsRootSignature(ComPtr<ID3D12RootSignature> rootSignature);
 
     void Draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t startVertex = 0, uint32_t startInstance = 0);
     void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t startIndex = 0, int32_t baseVertex = 0, uint32_t startInstance = 0);

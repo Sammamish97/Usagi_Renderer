@@ -90,6 +90,7 @@
     <ClInclude Include="CommandQueue.h" />
     <ClInclude Include="ConstantBuffer.h" />
     <ClInclude Include="d3dx12.h" />
+    <ClInclude Include="DescriptorHeap.h" />
     <ClInclude Include="DxEngine.h" />
     <ClInclude Include="DxUtil.h" />
     <ClInclude Include="Events.h" />
@@ -97,6 +98,7 @@
     <ClInclude Include="HighResolutionClock.h" />
     <ClInclude Include="IDemo.h" />
     <ClInclude Include="IndexBuffer.h" />
+    <ClInclude Include="IPass.h" />
     <ClInclude Include="KeyCodes.h" />
     <ClInclude Include="MathHelper.h" />
     <ClInclude Include="MemDefines.h" />
@@ -122,11 +124,13 @@
     <ClCompile Include="CommandList.cpp" />
     <ClCompile Include="CommandQueue.cpp" />
     <ClCompile Include="ConstantBuffer.cpp" />
+    <ClCompile Include="DescriptorHeap.cpp" />
     <ClCompile Include="DxEngine.cpp" />
     <ClCompile Include="DxUtil.cpp" />
     <ClCompile Include="HighResolutionClock.cpp" />
     <ClCompile Include="IDemo.cpp" />
     <ClCompile Include="IndexBuffer.cpp" />
+    <ClCompile Include="IPass.cpp" />
     <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="Model.cpp" />

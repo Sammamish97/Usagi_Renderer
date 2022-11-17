@@ -27,12 +27,18 @@
     <ClInclude Include="IKDemo.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ForwardPass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="IKDemo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ForwardPass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -263,6 +263,44 @@ UINT DxEngine::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type)
     return mDevice->GetDescriptorHandleIncrementSize(type);
 }
 
+void DxEngine::CreateRtvDescriptor(DXGI_FORMAT format, ComPtr<ID3D12Resource> resource, D3D12_CPU_DESCRIPTOR_HANDLE heapPos)
+{
+    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc;
+    rtvDesc.Format = format;
+    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    rtvDesc.Texture2D.MipSlice = 0;
+    rtvDesc.Texture2D.PlaneSlice = 0;
+    mDevice->CreateRenderTargetView(resource.Get(), &rtvDesc, heapPos);
+}
+
+void DxEngine::CreateDsvDescriptor(DXGI_FORMAT format, ComPtr<ID3D12Resource> resource, D3D12_CPU_DESCRIPTOR_HANDLE heapPos)
+{
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
+    dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+    dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    dsvDesc.Format = format;
+    dsvDesc.Texture2D.MipSlice = 0;
+    mDevice->CreateDepthStencilView(resource.Get(), &dsvDesc, heapPos);
+}
+
+void DxEngine::CreateCbvDescriptor(D3D12_GPU_VIRTUAL_ADDRESS gpuLocation, size_t bufferSize, D3D12_CPU_DESCRIPTOR_HANDLE heapPos)
+{
+    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
+    cbvDesc.BufferLocation = gpuLocation;
+    cbvDesc.SizeInBytes = bufferSize;
+    mDevice->CreateConstantBufferView(&cbvDesc, heapPos);
+}
+
+void DxEngine::CreateSrvDescriptor(D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc, ComPtr<ID3D12Resource> resource, D3D12_CPU_DESCRIPTOR_HANDLE heapPos)
+{
+    mDevice->CreateShaderResourceView(resource.Get(), &srvDesc, heapPos);
+}
+
+void DxEngine::CreateUavDescriptor(D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc, ComPtr<ID3D12Resource> resource, D3D12_CPU_DESCRIPTOR_HANDLE heapPos)
+{
+    mDevice->CreateUnorderedAccessView(resource.Get(), nullptr, &uavDesc, heapPos);
+}
+
 ComPtr<IDXGIAdapter4> DxEngine::GetAdapter(bool bUseWarp)
 {
     ComPtr<IDXGIFactory4> dxgiFactory;

@@ -4,6 +4,9 @@
 #include <wrl.h>
 
 #include <string>
+
+using Microsoft::WRL::ComPtr;
+
 class Resource
 {
 public:
@@ -11,7 +14,7 @@ public:
     explicit Resource(const D3D12_RESOURCE_DESC& resourceDesc,
         const D3D12_CLEAR_VALUE* clearValue = nullptr,
         const std::wstring& name = L"");
-    explicit Resource(Microsoft::WRL::ComPtr<ID3D12Resource> resource, const std::wstring& name = L"");
+    explicit Resource(ComPtr<ID3D12Resource> resource, const std::wstring& name = L"");
 
     Resource(const Resource& copy);
     Resource(Resource&& copy);
@@ -27,7 +30,7 @@ public:
     }
 
     // Get access to the underlying D3D12 resource
-    Microsoft::WRL::ComPtr<ID3D12Resource> GetD3D12Resource() const
+    ComPtr<ID3D12Resource> GetD3D12Resource() const
     {
         return mResource;
     }
@@ -51,7 +54,7 @@ public:
     bool CheckFormatSupport(D3D12_FORMAT_SUPPORT2 formatSupport) const;
 protected:
     // The underlying D3D12 resource.
-    Microsoft::WRL::ComPtr<ID3D12Resource> mResource;
+    ComPtr<ID3D12Resource> mResource;
     D3D12_FEATURE_DATA_FORMAT_SUPPORT mFormatSupport;
     std::unique_ptr<D3D12_CLEAR_VALUE> mClearValue;
     std::wstring mName;

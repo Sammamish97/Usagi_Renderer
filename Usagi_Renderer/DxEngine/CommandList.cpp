@@ -101,6 +101,16 @@ void CommandList::FlushResourceBarriers()
     m_ResourceStateTracker->FlushResourceBarriers(*this);
 }
 
+void CommandList::ClearTexture(const Texture& texture, const float clearColor[4])
+{
+    //TODO
+}
+
+void CommandList::ClearDepthStencilTexture(const Texture& texture, D3D12_CLEAR_FLAGS clearFlags, float depth, uint8_t stencil)
+{
+    //TODO
+}
+
 void CommandList::CopyResource(Microsoft::WRL::ComPtr<ID3D12Resource> dstRes, Microsoft::WRL::ComPtr<ID3D12Resource> srcRes)
 {
     TransitionBarrier(dstRes, D3D12_RESOURCE_STATE_COPY_DEST);
@@ -477,6 +487,13 @@ void CommandList::SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> p
     m_d3d12CommandList->SetPipelineState(pipelineState.Get());
 
     TrackResource(pipelineState);
+}
+
+void CommandList::SetGraphicsRootSignature(ComPtr<ID3D12RootSignature> rootSignature)
+{
+    m_d3d12CommandList->SetGraphicsRootSignature(rootSignature.Get());
+
+    TrackResource(rootSignature);//Maybe do not need.
 }
 
 void CommandList::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t startVertex, uint32_t startInstance)

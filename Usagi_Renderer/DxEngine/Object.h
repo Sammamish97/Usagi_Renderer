@@ -25,7 +25,6 @@ public:
 
 protected:
 	void SetWorldMatrix(CommandList& commandList);
-	void SetMaterial(CommandList& commandList);
 
 	std::shared_ptr<Model> mModel = nullptr;
 	XMFLOAT3 mPosition;

@@ -30,7 +30,6 @@ XMMATRIX Object::GetWorldMat() const
 void Object::Draw(CommandList& commandList)
 {
 	SetWorldMatrix(commandList);
-	SetMaterial(commandList);
 	for (auto& mesh : mModel->mMeshes)
 	{
 		mesh.Draw(commandList);
