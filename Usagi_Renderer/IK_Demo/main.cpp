@@ -7,7 +7,7 @@
 #include <dxgidebug.h>
 
 #include "framework.h"
-#include "IK_Demo.h"
+#include "IKDemo.h"
 #include "DxEngine.h"
 
 void ReportLiveObjects()
@@ -43,8 +43,8 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
 
     DxEngine::Create(hInstance);
     {
-        /*std::shared_ptr<Tutorial3> demo = std::make_shared<Tutorial3>(L"Learning DirectX 12 - Lesson 3", 1280, 720);
-        retCode = Application::Get().Run(demo);*/
+        std::shared_ptr<IKDemo> demo = std::make_shared<IKDemo>(L"Ussagi_Renderer: IK Demo", 1280, 720);
+        retCode = DxEngine::Get().Run(demo);
     }
     DxEngine::Destroy();
 

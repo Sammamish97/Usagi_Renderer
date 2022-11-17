@@ -24,12 +24,15 @@
     <ClInclude Include="Resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="IK_Demo.h">
+    <ClInclude Include="IKDemo.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="IK_Demo.cpp">
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="IKDemo.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

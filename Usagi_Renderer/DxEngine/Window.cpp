@@ -25,7 +25,6 @@ Window::Window(HWND hWnd, const std::wstring& windowName, int clientWidth, int c
     {
         mBackBufferTextures[i].SetName(L"Backbuffer[" + std::to_wstring(i) + L"]");
     }
-
     mdxgiSwapChain = CreateSwapChain();
 }
 
@@ -237,6 +236,7 @@ UINT Window::Present(const Texture& texture)
     auto commandList = commandQueue->GetCommandList();
 
     auto& backBuffer = mBackBufferTextures[mCurrentBackBufferIndex];
+
     if (texture.IsValid())
     {
         if (texture.GetD3D12ResourceDesc().SampleDesc.Count > 1)
@@ -249,6 +249,24 @@ UINT Window::Present(const Texture& texture)
         }
     }
 
-    //TODO
-    return 0;
+    RenderTarget renderTarget;
+    renderTarget.AttachTexture(AttachmentPoint::Color0, backBuffer);
+
+    //m_GUI.Render(commandList, renderTarget);
+
+    commandList->TransitionBarrier(backBuffer, D3D12_RESOURCE_STATE_PRESENT);
+    commandQueue->ExecuteCommandList(commandList);
+
+    UINT syncInterval = mVSync ? 1 : 0;
+    UINT presentFlags = mIsTearingSupported && !mVSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
+    ThrowIfFailed(mdxgiSwapChain->Present(syncInterval, presentFlags));
+
+    mFenceValues[mCurrentBackBufferIndex] = commandQueue->Signal();
+    mFrameValues[mCurrentBackBufferIndex] = DxEngine::GetFrameCount();
+
+    mCurrentBackBufferIndex = mdxgiSwapChain->GetCurrentBackBufferIndex();
+
+    commandQueue->WaitForFenceValue(mFenceValues[mCurrentBackBufferIndex]);
+
+    return mCurrentBackBufferIndex;
 }
