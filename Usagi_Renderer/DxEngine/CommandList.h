@@ -8,6 +8,7 @@
 #include <vector> // for std::vector
 
 #include "TextureUsage.h"
+#include "d3dx12.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -153,6 +154,8 @@ public:
 
     void SetPipelineState(ComPtr<ID3D12PipelineState> pipelineState);
     void SetGraphicsRootSignature(ComPtr<ID3D12RootSignature> rootSignature);
+
+    void SetSingleRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle);
 
     void Draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t startVertex = 0, uint32_t startInstance = 0);
     void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t startIndex = 0, int32_t baseVertex = 0, uint32_t startInstance = 0);

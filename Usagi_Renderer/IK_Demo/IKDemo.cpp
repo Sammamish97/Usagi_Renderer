@@ -22,8 +22,8 @@ bool IKDemo::LoadContent()
 	mModels["Plane"] = std::make_shared<Model>("../models/Plane.obj", *cmdList);
 	mModels["IkObject"] = std::make_shared<Model>("../models/IkObject.dae", *cmdList);
 
-	mShaders["ForwardVS"] = DxUtil::CompileShader(L"../shaders/GeometryPass.hlsl", nullptr, "VS", "vs_5_1");
-	mShaders["ForwardPS"] = DxUtil::CompileShader(L"../shaders/GeometryPass.hlsl", nullptr, "PS", "ps_5_1");
+	mShaders["ForwardVS"] = DxUtil::CompileShader(L"../shaders/Forward.hlsl", nullptr, "VS", "vs_5_1");
+	mShaders["ForwardPS"] = DxUtil::CompileShader(L"../shaders/Forward.hlsl", nullptr, "PS", "ps_5_1");
 
 	mObjects.push_back(std::make_shared<Object>(mModels["Plane"], XMFLOAT3(0, 0, 0), XMFLOAT3(1, 1, 1)));
 
@@ -56,16 +56,19 @@ void IKDemo::OnRender(RenderEventArgs& e)
 
 	float clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
 
-	//TODO
 	cmdList->ClearTexture(mRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
 	cmdList->ClearDepthStencilTexture(mRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH| D3D12_CLEAR_FLAG_STENCIL);
 	cmdList->SetPipelineState(mForwardPass->mPSO);
 	cmdList->SetGraphicsRootSignature(mForwardPass->mRootSig);
 
-	/*cmdList->SetGraphicsDynamicConstantBuffer(1, sizeof(CommonCB), mCommonCB.get());
-	cmdList->SetViewport(mScreenViewport);
-	cmdList->SetScissorRect(mScissorRect);
-	cmdList->SetRenderTargets(rtvArray, &dsvHeapCPUHandle);*/
+	cmdList->SetViewport(m_Viewport);
+	cmdList->SetScissorRect(m_ScissorRect);
+
+	cmdList->SetGraphicsDynamicConstantBuffer(1, sizeof(CommonCB), &mCommonCB);
+	cmdList->SetGraphicsDynamicConstantBuffer(2, sizeof(DirectLight), &mLightCB);
+
+	cmdList->SetSingleRenderTarget(&rtvCpuHandle, &dsvCpuHandle);
+
 	for (const auto& object : mObjects)
 	{
 		object->Draw(*cmdList);
@@ -77,7 +80,7 @@ void IKDemo::OnRender(RenderEventArgs& e)
 void IKDemo::InitRenderTarget()
 {
 	DXGI_SAMPLE_DESC sampleDesc = DxEngine::Get().GetMultisampleQualityLevels(BufferFormat::GetBufferFormat(BufferType::SWAPCHAIN), D3D12_MAX_MULTISAMPLE_SAMPLE_COUNT);
-	auto colorDesc = CD3DX12_RESOURCE_DESC::Tex2D(BufferFormat::GetBufferFormat(BufferType::SWAPCHAIN), mWidth, mHeight,
+	auto colorDesc = CD3DX12_RESOURCE_DESC::Tex2D(BufferFormat::GetBufferFormat(BufferType::SWAPCHAIN), mWidth, mHeight,//TODO: Width Height초기화 안됨! SwapChain, Scissor도 안되었을듯.
 		1, 1,
 		sampleDesc.Count, sampleDesc.Quality,
 		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
@@ -108,11 +111,11 @@ void IKDemo::InitRenderTarget()
 
 	CD3DX12_RESOURCE_DESC rtvDesc(colorTexture.GetD3D12ResourceDesc());
 	mRtvIdx = mDescriptorHeaps[HeapType::RTV]->GetNextAvailableIndex();
-	DxEngine::Get().CreateRtvDescriptor(rtvDesc.Format, colorTexture.GetD3D12Resource(), mDescriptorHeaps[RTV]->GetCpuHandle(mRtvIdx));
+	DxEngine::Get().CreateRtvDescriptor(rtvDesc.Format, colorTexture.GetD3D12Resource(), mDescriptorHeaps[HeapType::RTV]->GetCpuHandle(mRtvIdx));
 
 	CD3DX12_RESOURCE_DESC dsvDesc(depthTexture.GetD3D12ResourceDesc());
 	mDsvIdx = mDescriptorHeaps[HeapType::DSV]->GetNextAvailableIndex();
-	DxEngine::Get().CreateDsvDescriptor(dsvDesc.Format, depthTexture.GetD3D12Resource(), mDescriptorHeaps[DSV]->GetCpuHandle(mDsvIdx));
+	DxEngine::Get().CreateDsvDescriptor(dsvDesc.Format, depthTexture.GetD3D12Resource(), mDescriptorHeaps[HeapType::DSV]->GetCpuHandle(mDsvIdx));
 
 	mRenderTarget.AttachTexture(AttachmentPoint::Color0, colorTexture);
 	mRenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);

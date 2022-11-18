@@ -496,6 +496,12 @@ void CommandList::SetGraphicsRootSignature(ComPtr<ID3D12RootSignature> rootSigna
     TrackResource(rootSignature);//Maybe do not need.
 }
 
+void CommandList::SetSingleRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle,
+    D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle)
+{
+    m_d3d12CommandList->OMSetRenderTargets(1,rtvHandle, FALSE, dsvHandle);
+}
+
 void CommandList::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t startVertex, uint32_t startInstance)
 {
     FlushResourceBarriers();
