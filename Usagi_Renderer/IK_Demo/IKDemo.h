@@ -48,6 +48,9 @@ public:
 	void UnloadContent() override;
 	void OnUpdate(UpdateEventArgs& e);
 	void OnRender(RenderEventArgs& e);
+    void OnMouseMoved(MouseMotionEventArgs& e);
+    void OnMouseButtonPressed(MouseButtonEventArgs& e);
+    void OnMouseButtonReleased(MouseButtonEventArgs& e);
 
 private:
     void InitDescriptorHeaps();
@@ -79,6 +82,8 @@ private:
 	D3D12_RECT m_ScissorRect;
 
 	Camera mCamera;
+
+    POINT mLastMousePos;
 
 	int mWidth = 0;
 	int mHeight = 0;

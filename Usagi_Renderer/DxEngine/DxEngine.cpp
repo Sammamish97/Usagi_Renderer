@@ -15,7 +15,6 @@
 constexpr wchar_t WINDOW_CLASS_NAME[] = L"DX12RenderWindowClass";
 static std::shared_ptr<Window> gsWindow;
 static DxEngine* gsSingleTon = nullptr;
-static bool gsLoadDemoContents = false;
 
 uint64_t DxEngine::msFrameCount = 0;
 
@@ -168,7 +167,6 @@ int DxEngine::Run(std::shared_ptr<IDemo> pGame)
 {
     if (!pGame->Initialize()) return 1;
     if (!pGame->LoadContent()) return 2;
-    gsLoadDemoContents = true;
 
     MSG msg = { 0 };
     while (msg.message != WM_QUIT)
@@ -177,6 +175,13 @@ int DxEngine::Run(std::shared_ptr<IDemo> pGame)
         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
+
+            ++DxEngine::msFrameCount;
+            UpdateEventArgs updateEventArgs(0.0f, 0.0f, DxEngine::msFrameCount);
+            gsWindow->OnUpdate(updateEventArgs);
+
+            RenderEventArgs renderEventArgs(0.0f, 0.0f, DxEngine::msFrameCount);
+            gsWindow->OnRender(renderEventArgs);
         }
     }
 
@@ -459,21 +464,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
     }*/
 
     auto pWindow = gsWindow;
-    if (gsWindow && gsLoadDemoContents)
+    if (gsWindow)
     {
         switch (message)
         {
         case WM_PAINT:
-        {
-            ++DxEngine::msFrameCount;
-
-            // Delta time will be filled in by the Window.
-            UpdateEventArgs updateEventArgs(0.0f, 0.0f, DxEngine::msFrameCount);
-            pWindow->OnUpdate(updateEventArgs);
-            RenderEventArgs renderEventArgs(0.0f, 0.0f, DxEngine::msFrameCount);
-            // Delta time will be filled in by the Window.
-            pWindow->OnRender(renderEventArgs);
-        }
         break;
         case WM_SYSKEYDOWN:
         case WM_KEYDOWN:

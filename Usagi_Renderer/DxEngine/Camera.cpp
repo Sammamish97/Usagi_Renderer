@@ -11,7 +11,6 @@ Camera::Camera(float aspectRatio)
 
 void Camera::Update(const UpdateEventArgs& gt)
 {
-	mTheta -= (gt.ElapsedTime) * 0.1f;
 	// Convert Spherical to Cartesian coordinates.
 	mEyePos.x = mRadius * sinf(mPhi) * cosf(mTheta);
 	mEyePos.z = mRadius * sinf(mPhi) * sinf(mTheta);

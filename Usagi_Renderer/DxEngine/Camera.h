@@ -8,7 +8,7 @@ class UpdateEventArgs;
 struct Camera
 {
 public:
-	Camera(float aspectRatio = 45.f);
+	Camera(float aspectRatio);
 	void Update(const UpdateEventArgs& gt);
 	XMFLOAT3 GetPosition() const;
 	XMFLOAT4X4 GetViewMat() const;

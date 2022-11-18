@@ -41,8 +41,7 @@ ComPtr<ID3DBlob> DxUtil::CompileShader(const std::wstring& filename, const D3D_S
 		OutputDebugStringA((char*)errors->GetBufferPointer());
 
 	ThrowIfFailed(hr)
-
-		return byteCode;
+	return byteCode;
 }
 
 Microsoft::WRL::ComPtr<ID3DBlob> DxUtil::LoadCSO(const std::wstring& filename)

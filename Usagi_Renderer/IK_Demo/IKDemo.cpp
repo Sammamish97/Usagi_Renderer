@@ -15,6 +15,7 @@ IKDemo::IKDemo(const std::wstring& name, int width, int height, bool vSync)
 	, m_Viewport(CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)))
 	, mWidth(width)
 	, mHeight(height)
+	, mCamera(width / static_cast<float>(height))
 {
 }
 
@@ -24,14 +25,16 @@ bool IKDemo::LoadContent()
 
 	auto commandQueue = DxEngine::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 	auto cmdList = commandQueue->GetCommandList();
-
+	
 	mModels["Plane"] = std::make_shared<Model>("../models/Plane.obj", *cmdList);
 	mModels["IkObject"] = std::make_shared<Model>("../models/IkObject.dae", *cmdList);
+	mModels["Monkey"] = std::make_shared<Model>("../models/Monkey.obj", *cmdList);
 
 	mShaders["ForwardVS"] = DxUtil::CompileShader(L"../shaders/Forward.hlsl", nullptr, "VS", "vs_5_1");
 	mShaders["ForwardPS"] = DxUtil::CompileShader(L"../shaders/Forward.hlsl", nullptr, "PS", "ps_5_1");
 
-	mObjects.push_back(std::make_shared<Object>(mModels["Plane"], XMFLOAT3(0, 0, 0), XMFLOAT3(1, 1, 1)));
+	//mObjects.push_back(std::make_shared<Object>(mModels["Plane"], XMFLOAT3(0, -1, 0), XMFLOAT3(1, 1, 1)));
+	mObjects.push_back(std::make_shared<Object>(mModels["IkObject"], XMFLOAT3(0, 0, 0), XMFLOAT3(1, 1, 1)));
 
 	mForwardPass = std::make_unique<ForwardPass>(mShaders["ForwardVS"], mShaders["ForwardPS"]);
 
@@ -51,6 +54,7 @@ void IKDemo::UnloadContent()
 void IKDemo::OnUpdate(UpdateEventArgs& e)
 {
 	IDemo::OnUpdate(e);
+	mCamera.Update(e);
 	UpdateConstantBuffer(e);
 }
 
@@ -162,4 +166,47 @@ void IKDemo::UpdateConstantBuffer(UpdateEventArgs& e)
 
 	mLightCB.Direction = XMFLOAT3(-0.5f, 0.5f, 0.5f);
 	mLightCB.Color = XMFLOAT3(1, 1, 1);
+}
+
+void IKDemo::OnMouseMoved(MouseMotionEventArgs& e)
+{
+	int x = e.X;
+	int y = e.Y;
+
+	if (e.LeftButton != 0)
+	{
+		// Make each pixel correspond to a quarter of a degree.
+		float dx = XMConvertToRadians(0.25f * static_cast<float>(x - mLastMousePos.x));
+		float dy = XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
+
+		// Update angles based on input to orbit camera around box.
+		mCamera.mTheta += dx;
+		mCamera.mPhi += dy;
+
+		// Restrict the angle mPhi.
+		mCamera.mPhi = MathHelper::Clamp(mCamera.mPhi, 0.1f, MathHelper::Pi - 0.1f);
+	}
+	else if (e.RightButton != 0)
+	{
+		// Make each pixel correspond to 0.2 unit in the scene.
+		float dx = 0.05f * static_cast<float>(x - mLastMousePos.x);
+		float dy = 0.05f * static_cast<float>(y - mLastMousePos.y);
+
+		// Update the camera radius based on input.
+		mCamera.mRadius += dx - dy;
+
+		// Restrict the radius.
+		mCamera.mRadius = MathHelper::Clamp(mCamera.mRadius, 5.0f, 150.0f);
+	}
+	mLastMousePos.x = x;
+	mLastMousePos.y = y;
+}
+void IKDemo::OnMouseButtonPressed(MouseButtonEventArgs& e)
+{
+	mLastMousePos.x = e.X;
+	mLastMousePos.y = e.Y;
+}
+void IKDemo::OnMouseButtonReleased(MouseButtonEventArgs& e)
+{
+
 }
