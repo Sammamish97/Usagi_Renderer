@@ -15,6 +15,7 @@
 constexpr wchar_t WINDOW_CLASS_NAME[] = L"DX12RenderWindowClass";
 static std::shared_ptr<Window> gsWindow;
 static DxEngine* gsSingleTon = nullptr;
+static bool gsLoadDemoContents = false;
 
 uint64_t DxEngine::msFrameCount = 0;
 
@@ -52,6 +53,11 @@ DxEngine::DxEngine(HINSTANCE hInst)
     {
         MessageBoxA(NULL, "Unable to register the window class.", "Error", MB_OK | MB_ICONERROR);
     }
+}
+
+void DxEngine::RemoveWindow()
+{
+
 }
 
 void DxEngine::Initialize()
@@ -110,7 +116,7 @@ void DxEngine::Destroy()
 {
     if (gsSingleTon)
     {
-        assert(!gsWindow && "All windows should be destroyed before destroying the application instance.");
+        //assert(!gsWindow && "All windows should be destroyed before destroying the application instance.");
 
         delete gsSingleTon;
         gsSingleTon = nullptr;
@@ -144,8 +150,8 @@ std::shared_ptr<Window> DxEngine::CreateRenderWindow(const std::wstring& windowN
         MessageBoxA(NULL, "Could not create the render window.", "Error", MB_OK | MB_ICONERROR);
         return nullptr;
     }
-
-    return std::make_shared<MakeWindow>(hWnd, windowName, clientWidth, clientHeight, vSync);
+    gsWindow = std::make_shared<MakeWindow>(hWnd, windowName, clientWidth, clientHeight, vSync);
+    return gsWindow;
 }
 
 void DxEngine::DestroyWindow(std::shared_ptr<Window> window)
@@ -162,6 +168,7 @@ int DxEngine::Run(std::shared_ptr<IDemo> pGame)
 {
     if (!pGame->Initialize()) return 1;
     if (!pGame->LoadContent()) return 2;
+    gsLoadDemoContents = true;
 
     MSG msg = { 0 };
     while (msg.message != WM_QUIT)
@@ -452,7 +459,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
     }*/
 
     auto pWindow = gsWindow;
-    if (gsWindow)
+    if (gsWindow && gsLoadDemoContents)
     {
         switch (message)
         {
@@ -611,15 +618,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
         break;
         case WM_DESTROY:
         {
-            // If a window is being destroyed, remove it from the 
-            // window maps.
-            //RemoveWindow(hwnd);
-
-            //if (gsWindow == nullptr)
-            //{
-            //    // If there are no more windows, quit the application.
-            //    PostQuitMessage(0);
-            //}
+            if (gsWindow == nullptr)
+            {
+                // If there are no more windows, quit the application.
+                PostQuitMessage(0);
+            }
             PostQuitMessage(0);
         }
         break;

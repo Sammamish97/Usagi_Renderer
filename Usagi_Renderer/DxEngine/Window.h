@@ -97,7 +97,7 @@ private:
 
 	std::weak_ptr<IDemo> mDemo;
 
-	Microsoft::WRL::ComPtr<IDXGISwapChain4> mdxgiSwapChain;
+	ComPtr<IDXGISwapChain4> mdxgiSwapChain;
 	Texture mBackBufferTextures[BufferCount];
 	// Marked mutable to allow modification in a const function.
 	mutable RenderTarget mRenderTarget;

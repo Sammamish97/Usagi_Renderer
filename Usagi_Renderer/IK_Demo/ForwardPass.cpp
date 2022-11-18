@@ -30,9 +30,10 @@ void ForwardPass::InitRootSignature()
         D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
         D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
-    CD3DX12_ROOT_PARAMETER1 rootParameters[2];
+    CD3DX12_ROOT_PARAMETER1 rootParameters[3];
     rootParameters[0].InitAsConstants(sizeof(DirectX::XMMATRIX) / 4, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
     rootParameters[1].InitAsConstantBufferView(1);
+    rootParameters[2].InitAsConstantBufferView(2);
 
     CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDescription;
     rootSignatureDescription.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
@@ -71,8 +72,10 @@ void ForwardPass::InitPSO()
     defaultPSODesc.NumRenderTargets = 1;
     defaultPSODesc.RTVFormats[0] = BufferFormat::GetBufferFormat(BufferType::SWAPCHAIN);
     defaultPSODesc.DSVFormat = BufferFormat::GetBufferFormat(BufferType::DEPTH_STENCIL_DSV);
-    defaultPSODesc.SampleDesc.Count = msaaState.Count;
-    defaultPSODesc.SampleDesc.Quality = msaaState.Quality;
+   /* defaultPSODesc.SampleDesc.Count = msaaState.Count;
+    defaultPSODesc.SampleDesc.Quality = msaaState.Quality;*/
+    defaultPSODesc.SampleDesc.Count = 1;
+    defaultPSODesc.SampleDesc.Quality = 0; 
 
     D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},

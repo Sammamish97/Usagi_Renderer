@@ -52,7 +52,7 @@ public:
 private:
     void InitDescriptorHeaps();
     void InitRenderTarget();
-    void UpdateConstantBuffer();
+    void UpdateConstantBuffer(UpdateEventArgs& e);
 
 private:
 	ComPtr<ID3D12RootSignature> mRootSignature;
@@ -80,7 +80,7 @@ private:
 
 	Camera mCamera;
 
-	int mWidth;
-	int mHeight;
+	int mWidth = 0;
+	int mHeight = 0;
 };
 

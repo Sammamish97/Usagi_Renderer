@@ -89,8 +89,8 @@ public:
 
     void LoadTextureFromFile(Texture& texture, const std::wstring& fileName, TextureUsage textureUsage = TextureUsage::Albedo);
 
-    void ClearTexture(const Texture& texture, const float clearColor[4]);
-    void ClearDepthStencilTexture(const Texture& texture, D3D12_CLEAR_FLAGS clearFlags, float depth = 1.0f, uint8_t stencil = 0);
+    void ClearTexture(const Texture& texture, D3D12_CPU_DESCRIPTOR_HANDLE cpuDesc, const float clearColor[4]);
+    void ClearDepthStencilTexture(const Texture& texture, D3D12_CPU_DESCRIPTOR_HANDLE cpuDesc, D3D12_CLEAR_FLAGS clearFlags, float depth = 1.0f, uint8_t stencil = 0);
 
     void CopyTextureSubresource(Texture& texture, uint32_t firstSubresource, uint32_t numSubresources, D3D12_SUBRESOURCE_DATA* subresourceData);
 

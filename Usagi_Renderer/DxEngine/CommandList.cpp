@@ -101,14 +101,20 @@ void CommandList::FlushResourceBarriers()
     m_ResourceStateTracker->FlushResourceBarriers(*this);
 }
 
-void CommandList::ClearTexture(const Texture& texture, const float clearColor[4])
+void CommandList::ClearTexture(const Texture& texture, D3D12_CPU_DESCRIPTOR_HANDLE cpuDesc, const float clearColor[4])
 {
-    //TODO
+    TransitionBarrier(texture, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    m_d3d12CommandList->ClearRenderTargetView(cpuDesc, clearColor, 0, nullptr);
+
+    TrackResource(texture);
 }
 
-void CommandList::ClearDepthStencilTexture(const Texture& texture, D3D12_CLEAR_FLAGS clearFlags, float depth, uint8_t stencil)
+void CommandList::ClearDepthStencilTexture(const Texture& texture, D3D12_CPU_DESCRIPTOR_HANDLE cpuDesc, D3D12_CLEAR_FLAGS clearFlags, float depth, uint8_t stencil)
 {
-    //TODO
+    TransitionBarrier(texture, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    m_d3d12CommandList->ClearDepthStencilView(cpuDesc, clearFlags, depth, stencil, 0, nullptr);
+
+    TrackResource(texture);
 }
 
 void CommandList::CopyResource(Microsoft::WRL::ComPtr<ID3D12Resource> dstRes, Microsoft::WRL::ComPtr<ID3D12Resource> srcRes)

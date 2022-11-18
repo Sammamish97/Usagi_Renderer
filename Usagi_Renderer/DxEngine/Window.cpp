@@ -6,6 +6,7 @@
 #include "BufferFormat.h"
 #include "CommandQueue.h"
 #include "CommandList.h"
+#include "ResourceStateTracker.h"
 #include <cassert>
 
 Window::Window(HWND hWnd, const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync)
@@ -26,6 +27,7 @@ Window::Window(HWND hWnd, const std::wstring& windowName, int clientWidth, int c
         mBackBufferTextures[i].SetName(L"Backbuffer[" + std::to_wstring(i) + L"]");
     }
     mdxgiSwapChain = CreateSwapChain();
+    UpdateRenderTargetViews();
 }
 
 Window::~Window()
@@ -228,6 +230,15 @@ Microsoft::WRL::ComPtr<IDXGISwapChain4> Window::CreateSwapChain()
 
 void Window::UpdateRenderTargetViews()
 {
+    for (int i = 0; i < BufferCount; ++i)
+    {
+        ComPtr<ID3D12Resource> backBuffer;
+        ThrowIfFailed(mdxgiSwapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
+
+        ResourceStateTracker::AddGlobalResourceState(backBuffer.Get(), D3D12_RESOURCE_STATE_COMMON);
+
+        mBackBufferTextures[i].SetD3D12Resource(backBuffer);
+    }
 }
 
 UINT Window::Present(const Texture& texture)
