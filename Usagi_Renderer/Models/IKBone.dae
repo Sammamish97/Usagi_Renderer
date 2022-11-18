@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
+  <asset>
+    <contributor>
+      <author/>
+      <authoring_tool>FBX COLLADA exporter</authoring_tool>
+      <comments/>
+    </contributor>
+    <created>2022-11-18T06:56:58Z</created>
+    <keywords/>
+    <modified>2022-11-18T06:56:58Z</modified>
+    <revision/>
+    <subject/>
+    <title/>
+    <unit meter="0.010000" name="centimeter"/>
+    <up_axis>Y_UP</up_axis>
+  </asset>
+  <library_visual_scenes>
+    <visual_scene id="IKBone" name="IKBone">
+      <node name="joint1" id="joint1" sid="joint1" type="JOINT">
+        <matrix sid="matrix">0.005402 -0.999985 0.000000 0.000000 0.999985 0.005402 0.000000 0.000000 0.000000 0.000000 1.000000 0.000000 0.000000 0.000000 0.000000 1.000000</matrix>
+        <extra>
+          <technique profile="FCOLLADA">
+            <visibility>1.000000</visibility>
+          </technique>
+        </extra>
+        <node name="joint2" id="joint2" sid="joint2" type="JOINT">
+          <matrix sid="matrix">0.999985 0.005472 0.000000 2.000000 0.005472 -0.999985 -0.000000 -0.000000 -0.000000 0.000000 -1.000000 0.000000 0.000000 0.000000 0.000000 1.000000</matrix>
+          <extra>
+            <technique profile="FCOLLADA">
+              <visibility>1.000000</visibility>
+            </technique>
+          </extra>
+          <node name="joint3" id="joint3" sid="joint3" type="JOINT">
+            <matrix sid="matrix">0.999993 0.003800 0.000000 2.000000 0.003800 -0.999993 -0.000000 0.000000 0.000000 0.000000 -1.000000 0.000000 0.000000 0.000000 0.000000 1.000000</matrix>
+            <extra>
+              <technique profile="FCOLLADA">
+                <visibility>1.000000</visibility>
+              </technique>
+            </extra>
+            <node name="joint4" id="joint4" sid="joint4" type="JOINT">
+              <matrix sid="matrix">0.999981 0.006244 0.000000 2.000000 0.006244 -0.999981 -0.000000 0.000000 0.000000 0.000000 -1.000000 -0.000000 0.000000 0.000000 0.000000 1.000000</matrix>
+              <extra>
+                <technique profile="FCOLLADA">
+                  <visibility>1.000000</visibility>
+                </technique>
+              </extra>
+              <node name="joint5" id="joint5" sid="joint5" type="JOINT">
+                <matrix sid="matrix">0.999987 0.005168 0.000000 2.000000 0.005168 -0.999987 -0.000000 0.000000 0.000000 0.000000 -1.000000 -0.000000 0.000000 0.000000 0.000000 1.000000</matrix>
+                <extra>
+                  <technique profile="FCOLLADA">
+                    <visibility>1.000000</visibility>
+                  </technique>
+                </extra>
+                <node name="joint6" id="joint6" sid="joint6" type="JOINT">
+                  <matrix sid="matrix">0.002653 0.999996 0.000000 2.000000 -0.999996 0.002653 0.000000 -0.000000 0.000000 0.000000 1.000000 -0.000000 0.000000 0.000000 0.000000 1.000000</matrix>
+                  <extra>
+                    <technique profile="FCOLLADA">
+                      <visibility>1.000000</visibility>
+                    </technique>
+                  </extra>
+                </node>
+              </node>
+            </node>
+          </node>
+        </node>
+      </node>
+      <extra>
+        <technique profile="MAX3D">
+          <frame_rate>24.000000</frame_rate>
+        </technique>
+        <technique profile="FCOLLADA">
+          <start_time>0.041667</start_time>
+          <end_time>8.333333</end_time>
+        </technique>
+      </extra>
+    </visual_scene>
+  </library_visual_scenes>
+  <scene>
+    <instance_visual_scene url="#IKBone"/>
+  </scene>
+</COLLADA>

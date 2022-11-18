@@ -27,7 +27,7 @@ bool IKDemo::LoadContent()
 	auto cmdList = commandQueue->GetCommandList();
 	
 	mModels["Plane"] = std::make_shared<Model>("../models/Plane.obj", *cmdList);
-	mModels["IkObject"] = std::make_shared<Model>("../models/IkObject.dae", *cmdList);
+	//mModels["IkObject"] = std::make_shared<Model>("../models/IKBone.dae", *cmdList);
 	mModels["Monkey"] = std::make_shared<Model>("../models/Monkey.obj", *cmdList);
 
 	mShaders["ForwardVS"] = DxUtil::CompileShader(L"../shaders/Forward.hlsl", nullptr, "VS", "vs_5_1");
