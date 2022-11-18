@@ -1,22 +1,19 @@
-#include "ForwardPass.h"
+#include "LinePass.h"
 #include "DxEngine.h"
 #include "BufferFormat.h"
 #include "DxUtil.h"
 #include <DirectXMath.h>
-
-ForwardPass::ForwardPass(ComPtr<ID3DBlob> vertShader, ComPtr<ID3DBlob> pixelShader)
+LinePass::LinePass(ComPtr<ID3DBlob> vertShader, ComPtr<ID3DBlob> pixelShader)
 	:IPass(vertShader, pixelShader)
 {
 	InitRootSignature();
 	InitPSO();
 }
-
-void ForwardPass::InitRootSignature()
+void LinePass::InitRootSignature()
 {
-	//Forward Pass use these uniform values
-		//Object World
-		//Common CB
-		//Light CB
+    //Forward Pass use these uniform values
+        //Object World
+        //Common CB
     auto device = DxEngine::Get().GetDevice();
     D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
     if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
@@ -30,10 +27,9 @@ void ForwardPass::InitRootSignature()
         D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
         D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
-    CD3DX12_ROOT_PARAMETER1 rootParameters[3];
+    CD3DX12_ROOT_PARAMETER1 rootParameters[2];
     rootParameters[0].InitAsConstants(sizeof(DirectX::XMMATRIX) / 4, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
     rootParameters[1].InitAsConstantBufferView(1);
-    rootParameters[2].InitAsConstantBufferView(2);
 
     CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDescription;
     rootSignatureDescription.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
@@ -42,12 +38,12 @@ void ForwardPass::InitRootSignature()
     ComPtr<ID3DBlob> errorBlob;
 
     ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDescription, featureData.HighestVersion, &rootSignatureBlob, &errorBlob))
-    ThrowIfFailed(device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(mRootSig.GetAddressOf())))
+        ThrowIfFailed(device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(mRootSig.GetAddressOf())))
 }
-void ForwardPass::InitPSO()
+void LinePass::InitPSO()
 {
-	//ForwardPass use these frame buffers
-		//RTV, DSV
+    //ForwardPass use these frame buffers
+        //RTV, DSV
     auto device = DxEngine::Get().GetDevice();
     auto msaaState = DxEngine::Get().GetMultisampleQualityLevels(BufferFormat::GetBufferFormat(BufferType::SWAPCHAIN), D3D12_MAX_MULTISAMPLE_SAMPLE_COUNT);
 
@@ -68,21 +64,17 @@ void ForwardPass::InitPSO()
     defaultPSODesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     defaultPSODesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
     defaultPSODesc.SampleMask = UINT_MAX;
-    defaultPSODesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    defaultPSODesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
     defaultPSODesc.NumRenderTargets = 1;
     defaultPSODesc.RTVFormats[0] = BufferFormat::GetBufferFormat(BufferType::SWAPCHAIN);
     defaultPSODesc.DSVFormat = BufferFormat::GetBufferFormat(BufferType::DEPTH_STENCIL_DSV);
-   /* defaultPSODesc.SampleDesc.Count = msaaState.Count;
-    defaultPSODesc.SampleDesc.Quality = msaaState.Quality;*/
+    /* defaultPSODesc.SampleDesc.Count = msaaState.Count;
+     defaultPSODesc.SampleDesc.Quality = msaaState.Quality;*/
     defaultPSODesc.SampleDesc.Count = 1;
-    defaultPSODesc.SampleDesc.Quality = 0; 
+    defaultPSODesc.SampleDesc.Quality = 0;
 
     D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
     };
     defaultPSODesc.InputLayout = { inputLayout, _countof(inputLayout) };
 

@@ -6,8 +6,8 @@
 #include "Object.h"
 #include "Window.h"
 #include "BufferFormat.h"
-#include "ForwardPass.h"
 #include "Model.h"
+#include "BoneModel.h"
 
 IKDemo::IKDemo(const std::wstring& name, int width, int height, bool vSync)
 	:IDemo(name, width, height, vSync)
@@ -26,17 +26,20 @@ bool IKDemo::LoadContent()
 	auto commandQueue = DxEngine::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 	auto cmdList = commandQueue->GetCommandList();
 	
+	InitBoneObject();
+
 	mModels["Plane"] = std::make_shared<Model>("../models/Plane.obj", *cmdList);
-	//mModels["IkObject"] = std::make_shared<Model>("../models/IKBone.dae", *cmdList);
-	mModels["Monkey"] = std::make_shared<Model>("../models/Monkey.obj", *cmdList);
 
 	mShaders["ForwardVS"] = DxUtil::CompileShader(L"../shaders/Forward.hlsl", nullptr, "VS", "vs_5_1");
 	mShaders["ForwardPS"] = DxUtil::CompileShader(L"../shaders/Forward.hlsl", nullptr, "PS", "ps_5_1");
 
-	//mObjects.push_back(std::make_shared<Object>(mModels["Plane"], XMFLOAT3(0, -1, 0), XMFLOAT3(1, 1, 1)));
-	mObjects.push_back(std::make_shared<Object>(mModels["IkObject"], XMFLOAT3(0, 0, 0), XMFLOAT3(1, 1, 1)));
+	mShaders["LineVS"] = DxUtil::CompileShader(L"../shaders/Line.hlsl", nullptr, "VS", "vs_5_1");
+	mShaders["LinePS"] = DxUtil::CompileShader(L"../shaders/Line.hlsl", nullptr, "PS", "ps_5_1");
+
+	mObjects.push_back(std::make_shared<Object>(mModels["Plane"], XMFLOAT3(0, 0, 0), XMFLOAT3(1, 1, 1)));
 
 	mForwardPass = std::make_unique<ForwardPass>(mShaders["ForwardVS"], mShaders["ForwardPS"]);
+	mLinePass = std::make_unique<LinePass>(mShaders["LineVS"], mShaders["LinePS"]);
 
 	InitDescriptorHeaps();
 	InitRenderTarget();
@@ -71,21 +74,10 @@ void IKDemo::OnRender(RenderEventArgs& e)
 
 	cmdList->ClearTexture(mRenderTarget.GetTexture(AttachmentPoint::Color0), rtvCpuHandle, clearColor);
 	cmdList->ClearDepthStencilTexture(mRenderTarget.GetTexture(AttachmentPoint::DepthStencil), dsvCpuHandle, D3D12_CLEAR_FLAG_DEPTH| D3D12_CLEAR_FLAG_STENCIL);
-	cmdList->SetPipelineState(mForwardPass->mPSO);
-	cmdList->SetGraphicsRootSignature(mForwardPass->mRootSig);
 
-	cmdList->SetViewport(m_Viewport);
-	cmdList->SetScissorRect(m_ScissorRect);
+	DrawObject(*cmdList, &rtvCpuHandle, &dsvCpuHandle);
+	DrawLine(*cmdList, &rtvCpuHandle, &dsvCpuHandle);
 
-	cmdList->SetGraphicsDynamicConstantBuffer(1, sizeof(CommonCB), &mCommonCB);
-	cmdList->SetGraphicsDynamicConstantBuffer(2, sizeof(DirectLight), &mLightCB);
-
-	cmdList->SetSingleRenderTarget(&rtvCpuHandle, &dsvCpuHandle);
-
-	for (const auto& object : mObjects)
-	{
-		object->Draw(*cmdList);
-	}
 	commandQueue->ExecuteCommandList(cmdList);
 	m_pWindow->Present(mRenderTarget.GetTexture(AttachmentPoint::Color0));
 }
@@ -132,10 +124,89 @@ void IKDemo::InitRenderTarget()
 	mRenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
 }
 
+void IKDemo::InitBoneObject(int linkNum)
+{
+	mJointNum = linkNum + 1;
+	mEEIdx = linkNum;
+
+	aiVector3t<float> bonePosition;
+	aiMatrix4x4t<float> boneMatrix;
+	mBoneMats.push_back(boneMatrix);
+	bonePosition.y += 0.2;
+	aiMatrix4x4::Translation(bonePosition, boneMatrix);
+	for (int i = 0; i < linkNum; ++i)
+	{
+		aiMatrix4x4::Translation(bonePosition, boneMatrix);
+		mBoneMats.push_back(boneMatrix);
+	}
+}
+
 void IKDemo::InitDescriptorHeaps()
 {
 	mDescriptorHeaps[HeapType::RTV] = std::make_shared<DescriptorHeap>(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, DxEngine::Get().GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV), 128);
 	mDescriptorHeaps[HeapType::DSV] = std::make_shared<DescriptorHeap>(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, DxEngine::Get().GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV), 128);
+}
+
+void IKDemo::DrawObject(CommandList& cmdList, D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle)
+{
+	cmdList.SetPipelineState(mForwardPass->mPSO);
+	cmdList.SetGraphicsRootSignature(mForwardPass->mRootSig);
+
+	cmdList.SetViewport(m_Viewport);
+	cmdList.SetScissorRect(m_ScissorRect);
+
+	cmdList.SetGraphicsDynamicConstantBuffer(1, sizeof(CommonCB), &mCommonCB);
+	cmdList.SetGraphicsDynamicConstantBuffer(2, sizeof(DirectLight), &mLightCB);
+
+	cmdList.SetSingleRenderTarget(rtvHandle, dsvHandle);
+
+	for (const auto& object : mObjects)
+	{
+		object->Draw(cmdList);
+	}
+}
+
+void IKDemo::DrawLine(CommandList& cmdList, D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle)
+{
+	cmdList.SetPipelineState(mLinePass->mPSO);
+	cmdList.SetGraphicsRootSignature(mLinePass->mRootSig);
+
+	cmdList.SetViewport(m_Viewport);
+	cmdList.SetScissorRect(m_ScissorRect);
+
+	cmdList.SetGraphicsDynamicConstantBuffer(1, sizeof(CommonCB), &mCommonCB);
+
+	cmdList.SetSingleRenderTarget(rtvHandle, dsvHandle);
+	DrawIkBone(cmdList);
+}
+
+void IKDemo::DrawIkBone(CommandList& cmdList)
+{
+	std::vector<aiVector3t<float>> localPositions;
+	std::vector<aiMatrix4x4> localMats;
+	aiMatrix4x4 lastMat = mBoneMats[0];
+	localPositions.push_back({ 0, 0, 0 });
+	localMats.push_back(lastMat);
+
+	for (int i = 1; i < mJointNum; ++i)
+	{
+		auto currentMat = mBoneMats[i] * lastMat;
+		lastMat = currentMat;
+		aiVector3t<float> position;
+		aiQuaterniont<float> rotation;
+		currentMat.DecomposeNoScaling(rotation, position);
+		localPositions.push_back(position);
+	}
+
+	std::vector<aiVector3t<float>> vertices;
+	for (int i = 0; i < mJointNum - 1; ++i)
+	{
+		vertices.push_back(localPositions[i]);
+		vertices.push_back(localPositions[i + 1]);
+	}
+	cmdList.SetDynamicVertexBuffer(0, vertices);
+	cmdList.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+	cmdList.Draw(vertices.size());
 }
 
 void IKDemo::UpdateConstantBuffer(UpdateEventArgs& e)
@@ -210,3 +281,4 @@ void IKDemo::OnMouseButtonReleased(MouseButtonEventArgs& e)
 {
 
 }
+

@@ -30,6 +30,12 @@
     <ClInclude Include="ForwardPass.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="BoneModel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="LinePass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -39,6 +45,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ForwardPass.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BoneModel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="LinePass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

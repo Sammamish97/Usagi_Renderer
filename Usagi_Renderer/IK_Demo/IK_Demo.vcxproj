@@ -84,15 +84,19 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="BoneModel.h" />
     <ClInclude Include="ForwardPass.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="IKDemo.h" />
+    <ClInclude Include="LinePass.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BoneModel.cpp" />
     <ClCompile Include="ForwardPass.cpp" />
     <ClCompile Include="IKDemo.cpp" />
+    <ClCompile Include="LinePass.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>

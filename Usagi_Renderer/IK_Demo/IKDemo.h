@@ -6,7 +6,7 @@
 #include "Camera.h"
 #include "DescriptorHeap.h"
 #include "ForwardPass.h"
-
+#include "LinePass.h"
 #include <map>
 struct CommonCB
 {
@@ -40,6 +40,10 @@ using Microsoft::WRL::ComPtr;
 
 class Object;
 class Model;
+class BoneModel;
+class CommandList;
+class ForwardPass;
+class LinePass;
 class IKDemo : public IDemo
 {
 public:
@@ -53,9 +57,15 @@ public:
     void OnMouseButtonReleased(MouseButtonEventArgs& e);
 
 private:
+    void InitBoneObject(int linkNum = 5);
     void InitDescriptorHeaps();
     void InitRenderTarget();
+
     void UpdateConstantBuffer(UpdateEventArgs& e);
+    
+    void DrawObject(CommandList& cmdList, D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle);
+    void DrawLine(CommandList& cmdList, D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle);
+    void DrawIkBone(CommandList& cmdList);
 
 private:
 	ComPtr<ID3D12RootSignature> mRootSignature;
@@ -75,8 +85,14 @@ private:
     std::vector<std::shared_ptr<Object>> mObjects;
     std::unordered_map<std::string, ComPtr<ID3DBlob>> mShaders;
     std::unordered_map<std::string, std::shared_ptr<Model>> mModels;
+    std::shared_ptr<BoneModel> mIkModel;
+    int mJointNum;
+    int mEEIdx;
 
     std::unique_ptr<ForwardPass> mForwardPass;
+    std::unique_ptr<LinePass> mLinePass;
+
+    std::vector<aiMatrix4x4> mBoneMats;
 
 	D3D12_VIEWPORT m_Viewport;
 	D3D12_RECT m_ScissorRect;
