@@ -8,6 +8,7 @@
 #include "ForwardPass.h"
 #include "LinePass.h"
 #include <map>
+#include <IMGUI/imgui.h>
 struct CommonCB
 {
     XMFLOAT4X4 View = MathHelper::Identity4x4();
@@ -60,12 +61,19 @@ private:
     void InitBoneObject(int linkNum = 5);
     void InitDescriptorHeaps();
     void InitRenderTarget();
+    void InitGui();
 
     void UpdateConstantBuffer(UpdateEventArgs& e);
+    void UpdateTargetPos();
     
     void DrawObject(CommandList& cmdList, D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle);
     void DrawLine(CommandList& cmdList, D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle);
     void DrawIkBone(CommandList& cmdList);
+
+    void StartGuiFrame();
+    void UpdateGui();
+    void ClearGui();
+    void DrawGui(CommandList& cmdList);
 
 private:
 	ComPtr<ID3D12RootSignature> mRootSignature;
@@ -85,9 +93,13 @@ private:
     std::vector<std::shared_ptr<Object>> mObjects;
     std::unordered_map<std::string, ComPtr<ID3DBlob>> mShaders;
     std::unordered_map<std::string, std::shared_ptr<Model>> mModels;
+
     std::shared_ptr<BoneModel> mIkModel;
     int mJointNum;
     int mEEIdx;
+
+    std::shared_ptr<Object> mTarget;
+    XMFLOAT3 mTargetPosition = XMFLOAT3(0.f, 0.f, 0.f);
 
     std::unique_ptr<ForwardPass> mForwardPass;
     std::unique_ptr<LinePass> mLinePass;
@@ -100,6 +112,8 @@ private:
 	Camera mCamera;
 
     POINT mLastMousePos;
+
+    ComPtr<ID3D12DescriptorHeap> mGuiSrvUavCbvHeap = NULL;
 
 	int mWidth = 0;
 	int mHeight = 0;

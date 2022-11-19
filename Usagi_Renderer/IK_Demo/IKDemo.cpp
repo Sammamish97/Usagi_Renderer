@@ -8,6 +8,8 @@
 #include "BufferFormat.h"
 #include "Model.h"
 #include "BoneModel.h"
+#include <IMGUI/imgui_impl_dx12.h>
+#include <IMGUI/imgui_impl_win32.h>
 
 IKDemo::IKDemo(const std::wstring& name, int width, int height, bool vSync)
 	:IDemo(name, width, height, vSync)
@@ -21,14 +23,14 @@ IKDemo::IKDemo(const std::wstring& name, int width, int height, bool vSync)
 
 bool IKDemo::LoadContent()
 {
+	InitGui();
 	InitDescriptorHeaps();
-
+	
 	auto commandQueue = DxEngine::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 	auto cmdList = commandQueue->GetCommandList();
-	
-	InitBoneObject();
 
 	mModels["Plane"] = std::make_shared<Model>("../models/Plane.obj", *cmdList);
+	mModels["Sphere"] = std::make_shared<Model>("../models/Sphere.obj", *cmdList);
 
 	mShaders["ForwardVS"] = DxUtil::CompileShader(L"../shaders/Forward.hlsl", nullptr, "VS", "vs_5_1");
 	mShaders["ForwardPS"] = DxUtil::CompileShader(L"../shaders/Forward.hlsl", nullptr, "PS", "ps_5_1");
@@ -36,7 +38,9 @@ bool IKDemo::LoadContent()
 	mShaders["LineVS"] = DxUtil::CompileShader(L"../shaders/Line.hlsl", nullptr, "VS", "vs_5_1");
 	mShaders["LinePS"] = DxUtil::CompileShader(L"../shaders/Line.hlsl", nullptr, "PS", "ps_5_1");
 
+	InitBoneObject();
 	mObjects.push_back(std::make_shared<Object>(mModels["Plane"], XMFLOAT3(0, 0, 0), XMFLOAT3(1, 1, 1)));
+	mTarget = std::make_shared<Object>(mModels["Sphere"], XMFLOAT3(0, 0, 0), XMFLOAT3(1, 1, 1));
 
 	mForwardPass = std::make_unique<ForwardPass>(mShaders["ForwardVS"], mShaders["ForwardPS"]);
 	mLinePass = std::make_unique<LinePass>(mShaders["LineVS"], mShaders["LinePS"]);
@@ -46,19 +50,23 @@ bool IKDemo::LoadContent()
 
 	auto fenceValue = commandQueue->ExecuteCommandList(cmdList);
 	commandQueue->WaitForFenceValue(fenceValue);
+
 	return true;
 }
 
 void IKDemo::UnloadContent()
 {
-
+	ClearGui();
 }
 
 void IKDemo::OnUpdate(UpdateEventArgs& e)
 {
 	IDemo::OnUpdate(e);
+	StartGuiFrame();
+	UpdateGui();
 	mCamera.Update(e);
 	UpdateConstantBuffer(e);
+	UpdateTargetPos();
 }
 
 void IKDemo::OnRender(RenderEventArgs& e)
@@ -77,7 +85,7 @@ void IKDemo::OnRender(RenderEventArgs& e)
 
 	DrawObject(*cmdList, &rtvCpuHandle, &dsvCpuHandle);
 	DrawLine(*cmdList, &rtvCpuHandle, &dsvCpuHandle);
-
+	DrawGui(*cmdList);
 	commandQueue->ExecuteCommandList(cmdList);
 	m_pWindow->Present(mRenderTarget.GetTexture(AttachmentPoint::Color0));
 }
@@ -164,6 +172,7 @@ void IKDemo::DrawObject(CommandList& cmdList, D3D12_CPU_DESCRIPTOR_HANDLE* rtvHa
 	{
 		object->Draw(cmdList);
 	}
+	mTarget->Draw(cmdList);
 }
 
 void IKDemo::DrawLine(CommandList& cmdList, D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle)
@@ -239,46 +248,116 @@ void IKDemo::UpdateConstantBuffer(UpdateEventArgs& e)
 	mLightCB.Color = XMFLOAT3(1, 1, 1);
 }
 
+void IKDemo::UpdateTargetPos()
+{
+	mTarget->SetPosition(XMLoadFloat3(&mTargetPosition));
+}
+
+void IKDemo::InitGui()
+{
+	auto device = DxEngine::Get().GetDevice();
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO GuiIO = ImGui::GetIO(); (void)GuiIO;
+
+	ImGui::StyleColorsDark();
+
+	ImGui_ImplWin32_Init(DxEngine::Get().GetWindowHandle());
+
+	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	desc.NumDescriptors = 1;
+	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	if (device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&mGuiSrvUavCbvHeap)) != S_OK)
+	{
+		assert("Failed to create IMGUI SRV heap");
+	}
+
+	ImGui_ImplDX12_Init(device.Get(), 1,
+		DXGI_FORMAT_R8G8B8A8_UNORM, mGuiSrvUavCbvHeap.Get(),
+		mGuiSrvUavCbvHeap->GetCPUDescriptorHandleForHeapStart(),
+		mGuiSrvUavCbvHeap->GetGPUDescriptorHandleForHeapStart());
+}
+
+void IKDemo::StartGuiFrame()
+{
+	ImGui_ImplDX12_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+}
+
+void IKDemo::UpdateGui()
+{
+	static int modelIndex;
+	ImGui::Begin("GUI");
+	ImGui::SliderFloat3("Target Position", &(mTargetPosition.x), 0, 1);
+	ImGui::End();
+}
+
+void IKDemo::ClearGui()
+{
+	ImGui_ImplDX12_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
+}
+
+void IKDemo::DrawGui(CommandList& cmdList)
+{
+	cmdList.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+	cmdList.SetDescriptorHeap(mGuiSrvUavCbvHeap);
+
+	ImGui::Render();
+	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmdList.GetGraphicsCommandList().Get());
+}
+
 void IKDemo::OnMouseMoved(MouseMotionEventArgs& e)
 {
-	int x = e.X;
-	int y = e.Y;
-
-	if (e.LeftButton != 0)
+	ImGuiIO& io = ImGui::GetIO();
+	if (io.WantCaptureMouse == false)
 	{
-		// Make each pixel correspond to a quarter of a degree.
-		float dx = XMConvertToRadians(0.25f * static_cast<float>(x - mLastMousePos.x));
-		float dy = XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
+		int x = e.X;
+		int y = e.Y;
 
-		// Update angles based on input to orbit camera around box.
-		mCamera.mTheta += dx;
-		mCamera.mPhi += dy;
+		if (e.LeftButton != 0)
+		{
+			// Make each pixel correspond to a quarter of a degree.
+			float dx = XMConvertToRadians(0.25f * static_cast<float>(x - mLastMousePos.x));
+			float dy = XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
 
-		// Restrict the angle mPhi.
-		mCamera.mPhi = MathHelper::Clamp(mCamera.mPhi, 0.1f, MathHelper::Pi - 0.1f);
+			// Update angles based on input to orbit camera around box.
+			mCamera.mTheta += dx;
+			mCamera.mPhi += dy;
+
+			// Restrict the angle mPhi.
+			mCamera.mPhi = MathHelper::Clamp(mCamera.mPhi, 0.1f, MathHelper::Pi - 0.1f);
+		}
+		else if (e.RightButton != 0)
+		{
+			// Make each pixel correspond to 0.2 unit in the scene.
+			float dx = 0.05f * static_cast<float>(x - mLastMousePos.x);
+			float dy = 0.05f * static_cast<float>(y - mLastMousePos.y);
+
+			// Update the camera radius based on input.
+			mCamera.mRadius += dx - dy;
+
+			// Restrict the radius.
+			mCamera.mRadius = MathHelper::Clamp(mCamera.mRadius, 5.0f, 150.0f);
+		}
+		mLastMousePos.x = x;
+		mLastMousePos.y = y;
 	}
-	else if (e.RightButton != 0)
-	{
-		// Make each pixel correspond to 0.2 unit in the scene.
-		float dx = 0.05f * static_cast<float>(x - mLastMousePos.x);
-		float dy = 0.05f * static_cast<float>(y - mLastMousePos.y);
-
-		// Update the camera radius based on input.
-		mCamera.mRadius += dx - dy;
-
-		// Restrict the radius.
-		mCamera.mRadius = MathHelper::Clamp(mCamera.mRadius, 5.0f, 150.0f);
-	}
-	mLastMousePos.x = x;
-	mLastMousePos.y = y;
 }
 void IKDemo::OnMouseButtonPressed(MouseButtonEventArgs& e)
 {
 	mLastMousePos.x = e.X;
 	mLastMousePos.y = e.Y;
+
+	ImGuiIO& io = ImGui::GetIO();
+	io.AddMouseButtonEvent(0, true);
 }
 void IKDemo::OnMouseButtonReleased(MouseButtonEventArgs& e)
 {
-
+	ImGuiIO& io = ImGui::GetIO();
+	io.AddMouseButtonEvent(0, false);
 }
 

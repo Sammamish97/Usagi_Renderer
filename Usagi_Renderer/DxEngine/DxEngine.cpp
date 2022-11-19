@@ -19,6 +19,8 @@ static DxEngine* gsSingleTon = nullptr;
 uint64_t DxEngine::msFrameCount = 0;
 
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
+extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 //extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 // A wrapper struct to allow shared pointers for the window class.
@@ -52,6 +54,11 @@ DxEngine::DxEngine(HINSTANCE hInst)
     {
         MessageBoxA(NULL, "Unable to register the window class.", "Error", MB_OK | MB_ICONERROR);
     }
+}
+
+HWND DxEngine::GetWindowHandle() const
+{
+    return gsWindow->GetWindowHandle();
 }
 
 void DxEngine::RemoveWindow()
@@ -458,10 +465,10 @@ MouseButtonEventArgs::MouseButton DecodeMouseButton(UINT messageID)
 
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    /*if (ImGui_ImplWin32_WndProcHandler(hwnd, message, wParam, lParam))
+    if (ImGui_ImplWin32_WndProcHandler(hwnd, message, wParam, lParam))
     {
         return true;
-    }*/
+    }
 
     auto pWindow = gsWindow;
     if (gsWindow)

@@ -508,6 +508,11 @@ void CommandList::SetSingleRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle,
     m_d3d12CommandList->OMSetRenderTargets(1,rtvHandle, FALSE, dsvHandle);
 }
 
+void CommandList::SetDescriptorHeap(ComPtr<ID3D12DescriptorHeap> heap)
+{
+    m_d3d12CommandList->SetDescriptorHeaps(1, heap.GetAddressOf());
+}
+
 void CommandList::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t startVertex, uint32_t startInstance)
 {
     FlushResourceBarriers();

@@ -83,5 +83,5 @@ void IDemo::OnResize(ResizeEventArgs& e)
 
 void IDemo::OnWindowDestroy()
 {
-    UnloadContent();
+
 }
