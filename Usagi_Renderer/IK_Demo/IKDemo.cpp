@@ -10,6 +10,7 @@
 #include "BoneModel.h"
 #include <IMGUI/imgui_impl_dx12.h>
 #include <IMGUI/imgui_impl_win32.h>
+#include <stack>
 
 IKDemo::IKDemo(const std::wstring& name, int width, int height, bool vSync)
 	:IDemo(name, width, height, vSync)
@@ -40,7 +41,7 @@ bool IKDemo::LoadContent()
 
 	InitBoneObject();
 	mObjects.push_back(std::make_shared<Object>(mModels["Plane"], XMFLOAT3(0, 0, 0), XMFLOAT3(1, 1, 1)));
-	mTarget = std::make_shared<Object>(mModels["Sphere"], XMFLOAT3(0, 0, 0), XMFLOAT3(1, 1, 1));
+	mTarget = std::make_shared<Object>(mModels["Sphere"], XMFLOAT3(0, 0, 0), XMFLOAT3(1, 1, 1), XMFLOAT3(0.1, 0.1, 0.1));
 
 	mForwardPass = std::make_unique<ForwardPass>(mShaders["ForwardVS"], mShaders["ForwardPS"]);
 	mLinePass = std::make_unique<LinePass>(mShaders["LineVS"], mShaders["LinePS"]);
@@ -67,6 +68,7 @@ void IKDemo::OnUpdate(UpdateEventArgs& e)
 	mCamera.Update(e);
 	UpdateConstantBuffer(e);
 	UpdateTargetPos();
+	UpdateIkObject();
 }
 
 void IKDemo::OnRender(RenderEventArgs& e)
@@ -137,15 +139,16 @@ void IKDemo::InitBoneObject(int linkNum)
 	mJointNum = linkNum + 1;
 	mEEIdx = linkNum;
 
-	aiVector3t<float> bonePosition;
-	aiMatrix4x4t<float> boneMatrix;
-	mBoneMats.push_back(boneMatrix);
-	bonePosition.y += 0.2;
-	aiMatrix4x4::Translation(bonePosition, boneMatrix);
+	XMVECTOR bonePosition = XMVectorZero();
+
+	auto offset = XMFLOAT3(0.f, 0.2f, 0.f);
+	XMVECTOR jointOffset = XMLoadFloat3(&offset);
+
+	mJointMats.push_back(XMMatrixIdentity());
+
 	for (int i = 0; i < linkNum; ++i)
 	{
-		aiMatrix4x4::Translation(bonePosition, boneMatrix);
-		mBoneMats.push_back(boneMatrix);
+		mJointMats.push_back(XMMatrixTranslationFromVector(jointOffset));
 	}
 }
 
@@ -168,11 +171,11 @@ void IKDemo::DrawObject(CommandList& cmdList, D3D12_CPU_DESCRIPTOR_HANDLE* rtvHa
 
 	cmdList.SetSingleRenderTarget(rtvHandle, dsvHandle);
 
+	mTarget->Draw(cmdList);
 	for (const auto& object : mObjects)
 	{
 		object->Draw(cmdList);
 	}
-	mTarget->Draw(cmdList);
 }
 
 void IKDemo::DrawLine(CommandList& cmdList, D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle)
@@ -191,28 +194,24 @@ void IKDemo::DrawLine(CommandList& cmdList, D3D12_CPU_DESCRIPTOR_HANDLE* rtvHand
 
 void IKDemo::DrawIkBone(CommandList& cmdList)
 {
-	std::vector<aiVector3t<float>> localPositions;
-	std::vector<aiMatrix4x4> localMats;
-	aiMatrix4x4 lastMat = mBoneMats[0];
-	localPositions.push_back({ 0, 0, 0 });
-	localMats.push_back(lastMat);
-
+	std::vector<XMVECTOR> absolutePos;
+	XMMATRIX lastMat = mJointMats[0];
+	absolutePos.push_back(GetDecomposedTranslation(lastMat));
+	
 	for (int i = 1; i < mJointNum; ++i)
 	{
-		auto currentMat = mBoneMats[i] * lastMat;
+		auto currentMat = lastMat * mJointMats[i];
 		lastMat = currentMat;
-		aiVector3t<float> position;
-		aiQuaterniont<float> rotation;
-		currentMat.DecomposeNoScaling(rotation, position);
-		localPositions.push_back(position);
+		absolutePos.push_back(GetDecomposedTranslation(currentMat));
 	}
 
-	std::vector<aiVector3t<float>> vertices;
+	std::vector<XMVECTOR> vertices;
 	for (int i = 0; i < mJointNum - 1; ++i)
 	{
-		vertices.push_back(localPositions[i]);
-		vertices.push_back(localPositions[i + 1]);
+		vertices.push_back(absolutePos[i]);
+		vertices.push_back(absolutePos[i+1]);
 	}
+
 	cmdList.SetDynamicVertexBuffer(0, vertices);
 	cmdList.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
 	cmdList.Draw(vertices.size());
@@ -250,7 +249,64 @@ void IKDemo::UpdateConstantBuffer(UpdateEventArgs& e)
 
 void IKDemo::UpdateTargetPos()
 {
-	mTarget->SetPosition(XMLoadFloat3(&mTargetPosition));
+	mTarget->SetPosition(mTargetPosition);
+}
+
+void IKDemo::UpdateIkObject()
+{
+	////Push each joints' absolute transform in to stack.
+	//std::stack<aiMatrix4x4> matStack;
+
+	////0'th joint is root & bone Object's world position.
+	////Other joints are relative to root&parents for hirarchy
+	//aiMatrix4x4 lastMat = mJointMats[0];
+	//matStack.push(lastMat);
+	//for (int i = 1; i < mJointNum; ++i)
+	//{
+	//	aiMatrix4x4 currentMat = lastMat * mJointMats[i];
+	//	matStack.push(currentMat);
+	//	lastMat = currentMat;
+	//}
+
+	//aiMatrix4x4 EEMat = matStack.top();
+	//matStack.pop();
+
+	//aiQuaterniont<float> currentEERot;
+	//aiVector3t<float> absoluteEEPos;
+
+	//EEMat.DecomposeNoScaling(currentEERot, absoluteEEPos);//Root is on world coordinate, so EE also on World coordinate.
+
+	//float lastMove = 0;
+	//float threshold = 0.001f;
+	//while (Distance(mTargetPosition, absoluteEEPos) < threshold)
+	//{
+	//	for (int i = mEEIdx - 1; i <= 0; --i)
+	//	{
+	//		aiMatrix4x4 currentAbsoluteMat = matStack.top();
+	//		matStack.pop();
+
+	//		aiQuaterniont<float> currentAbsoluteRot;
+	//		aiVector3t<float> currentAbsolutePos;
+	//	
+	//		currentAbsoluteMat.DecomposeNoScaling(currentAbsoluteRot, currentAbsolutePos);
+
+
+	//		aiVector3t<float> jointToEE = (absoluteEEPos - currentAbsolutePos).Normalize();
+	//		aiVector3t<float> jointToDestination = (mTargetPosition - currentAbsolutePos).Normalize();
+
+	//		aiVector3t<float> axis = jointToEE * jointToDestination;//Cross product
+	//		//float angle = std::acos()
+
+
+	//		if (Distance(mTargetPosition, currentEEPos) < threshold)
+	//		{
+	//			//Approach complete.
+	//			break;
+	//		}
+	//	}
+
+	//	if()
+	//}
 }
 
 void IKDemo::InitGui()
@@ -310,6 +366,15 @@ void IKDemo::DrawGui(CommandList& cmdList)
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmdList.GetGraphicsCommandList().Get());
 }
 
+XMVECTOR IKDemo::GetDecomposedTranslation(XMMATRIX matrix)
+{
+	XMVECTOR scale;
+	XMVECTOR quat;
+	XMVECTOR pos;
+	XMMatrixDecompose(&scale, &quat, &pos, matrix);
+	return pos;
+}
+
 void IKDemo::OnMouseMoved(MouseMotionEventArgs& e)
 {
 	ImGuiIO& io = ImGui::GetIO();
@@ -347,6 +412,7 @@ void IKDemo::OnMouseMoved(MouseMotionEventArgs& e)
 		mLastMousePos.y = y;
 	}
 }
+
 void IKDemo::OnMouseButtonPressed(MouseButtonEventArgs& e)
 {
 	mLastMousePos.x = e.X;
@@ -355,9 +421,9 @@ void IKDemo::OnMouseButtonPressed(MouseButtonEventArgs& e)
 	ImGuiIO& io = ImGui::GetIO();
 	io.AddMouseButtonEvent(0, true);
 }
+
 void IKDemo::OnMouseButtonReleased(MouseButtonEventArgs& e)
 {
 	ImGuiIO& io = ImGui::GetIO();
 	io.AddMouseButtonEvent(0, false);
 }
-

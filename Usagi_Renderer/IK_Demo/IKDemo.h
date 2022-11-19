@@ -9,6 +9,7 @@
 #include "LinePass.h"
 #include <map>
 #include <IMGUI/imgui.h>
+#include <DirectXMath.h>
 struct CommonCB
 {
     XMFLOAT4X4 View = MathHelper::Identity4x4();
@@ -38,6 +39,7 @@ struct DirectLight
 };
 
 using Microsoft::WRL::ComPtr;
+using namespace DirectX;
 
 class Object;
 class Model;
@@ -65,6 +67,7 @@ private:
 
     void UpdateConstantBuffer(UpdateEventArgs& e);
     void UpdateTargetPos();
+    void UpdateIkObject();
     
     void DrawObject(CommandList& cmdList, D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle);
     void DrawLine(CommandList& cmdList, D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle);
@@ -74,6 +77,8 @@ private:
     void UpdateGui();
     void ClearGui();
     void DrawGui(CommandList& cmdList);
+
+    XMVECTOR GetDecomposedTranslation(XMMATRIX matrix);
 
 private:
 	ComPtr<ID3D12RootSignature> mRootSignature;
@@ -94,17 +99,15 @@ private:
     std::unordered_map<std::string, ComPtr<ID3DBlob>> mShaders;
     std::unordered_map<std::string, std::shared_ptr<Model>> mModels;
 
-    std::shared_ptr<BoneModel> mIkModel;
+    std::vector<XMMATRIX> mJointMats;//0'th joint is Root, (n-1)'th joint is EE. Every joint define relatively.
     int mJointNum;
     int mEEIdx;
 
     std::shared_ptr<Object> mTarget;
-    XMFLOAT3 mTargetPosition = XMFLOAT3(0.f, 0.f, 0.f);
+    XMFLOAT3 mTargetPosition = XMFLOAT3(0, 0, 0);
 
     std::unique_ptr<ForwardPass> mForwardPass;
     std::unique_ptr<LinePass> mLinePass;
-
-    std::vector<aiMatrix4x4> mBoneMats;
 
 	D3D12_VIEWPORT m_Viewport;
 	D3D12_RECT m_ScissorRect;

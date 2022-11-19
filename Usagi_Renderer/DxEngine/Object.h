@@ -19,6 +19,7 @@ public:
 	virtual void Draw(CommandList& commandList);
 	XMMATRIX GetWorldMat() const;
 	void SetPosition(XMVECTOR newPos);
+	void SetPosition(XMFLOAT3 newPos);
 	void SetScale(XMVECTOR newScale);
 	void SetAlbedo(XMFLOAT3 newAlbedo);
 	void SetModel(std::shared_ptr<Model> model);

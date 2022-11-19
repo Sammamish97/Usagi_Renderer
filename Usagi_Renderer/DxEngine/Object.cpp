@@ -41,6 +41,11 @@ void Object::SetPosition(XMVECTOR newPos)
 	XMStoreFloat3(&mPosition, newPos);
 }
 
+void Object::SetPosition(XMFLOAT3 newPos)
+{
+	mPosition = newPos;
+}
+
 void Object::SetScale(XMVECTOR newScale)
 {
 	XMStoreFloat3(&mScale, newScale);
