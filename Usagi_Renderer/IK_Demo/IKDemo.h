@@ -10,6 +10,7 @@
 #include <map>
 #include <IMGUI/imgui.h>
 #include <DirectXMath.h>
+
 struct CommonCB
 {
     XMFLOAT4X4 View = MathHelper::Identity4x4();
@@ -110,7 +111,7 @@ private:
     bool breakButton = false;
 
     std::shared_ptr<Object> mTarget;
-    XMFLOAT4 mTargetPosition = XMFLOAT4(0.8, 0.8, 0, 1);
+    XMFLOAT4 mTargetPosition = XMFLOAT4(0.4, 0.4, 0.0, 1);
 
     std::unique_ptr<ForwardPass> mForwardPass;
     std::unique_ptr<LinePass> mLinePass;
@@ -127,4 +128,3 @@ private:
 	int mWidth = 0;
 	int mHeight = 0;
 };
-
