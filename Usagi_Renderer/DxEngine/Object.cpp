@@ -24,7 +24,7 @@ XMMATRIX Object::GetWorldMat() const
 	XMMATRIX translationMat = XMMatrixTranslation(mPosition.x, mPosition.y, mPosition.z);
 	XMMATRIX scaleMat = XMMatrixScaling(mScale.x, mScale.y, mScale.z);
 
-	return XMMatrixMultiply(translationMat, scaleMat);
+	return XMMatrixMultiply(scaleMat, translationMat);
 }
 
 void Object::Draw(CommandList& commandList)

@@ -1,11 +1,4 @@
-struct WorldMatrix
-{
-    matrix mat;
-};
-
-ConstantBuffer<WorldMatrix> objectWorld : register(b0);
-
-cbuffer cbPass : register(b1)
+cbuffer cbPass : register(b0)
 {
     float4x4 gView;
     float4x4 gInvView;
@@ -47,8 +40,7 @@ VertexOut VS(VertexIn vin)
     VertexOut vout = (VertexOut)0.0f;
 
     // Transform to homogeneous clip space.
-    vout.PosW = mul(float4(vin.PosL, 1.0f), objectWorld.mat);;
-    vout.PosH = mul(vout.PosW, gViewProj);
+    vout.PosH = mul(float4(vin.PosL, 1.0f), gViewProj);
     vout.vertexID = vin.vertexID;
 
     return vout;

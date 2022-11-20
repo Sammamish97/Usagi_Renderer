@@ -60,7 +60,7 @@ public:
     void OnMouseButtonReleased(MouseButtonEventArgs& e);
 
 private:
-    void InitBoneObject(int linkNum = 5);
+    void InitBoneObject(int linkNum = 3);
     void InitDescriptorHeaps();
     void InitRenderTarget();
     void InitGui();
@@ -68,6 +68,8 @@ private:
     void UpdateConstantBuffer(UpdateEventArgs& e);
     void UpdateTargetPos();
     void UpdateIkObject();
+    void UpdateIkObject2();
+    void UpdateHirarchyTest();
     
     void DrawObject(CommandList& cmdList, D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle);
     void DrawLine(CommandList& cmdList, D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle);
@@ -79,6 +81,8 @@ private:
     void DrawGui(CommandList& cmdList);
 
     XMVECTOR GetDecomposedTranslation(XMMATRIX matrix);
+    float GetDistance(XMVECTOR lhs, XMVECTOR rhs);
+    XMMATRIX GetInverseMatrix(XMMATRIX mat);
 
 private:
 	ComPtr<ID3D12RootSignature> mRootSignature;
@@ -102,9 +106,12 @@ private:
     std::vector<XMMATRIX> mJointMats;//0'th joint is Root, (n-1)'th joint is EE. Every joint define relatively.
     int mJointNum;
     int mEEIdx;
+    XMMATRIX mIkPosition;
+
+    bool breakButton = false;
 
     std::shared_ptr<Object> mTarget;
-    XMFLOAT3 mTargetPosition = XMFLOAT3(0, 0, 0);
+    XMFLOAT4 mTargetPosition = XMFLOAT4(4, 4, 0, 1);
 
     std::unique_ptr<ForwardPass> mForwardPass;
     std::unique_ptr<LinePass> mLinePass;
