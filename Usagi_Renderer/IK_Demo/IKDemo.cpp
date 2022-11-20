@@ -71,7 +71,7 @@ void IKDemo::OnUpdate(UpdateEventArgs& e)
 	UpdateTargetPos();
 	//UpdateIkObject();
 	//UpdateHirarchyTest();
-	UpdateIkObject2();
+	UpdateIkObject();
 }
 
 void IKDemo::OnRender(RenderEventArgs& e)
@@ -142,7 +142,7 @@ void IKDemo::InitBoneObject(int linkNum)
 	mJointNum = linkNum + 1;
 	mEEIdx = linkNum;
 	
-	auto offset = XMFLOAT4(0.f, 2.f, 0.f, 0.f);
+	auto offset = XMFLOAT4(0.f, 0.2f, 0.f, 0.f);
 	XMVECTOR jointOffset = XMLoadFloat4(&offset);
 
 	mJointMats.push_back(XMMatrixIdentity());
@@ -254,91 +254,6 @@ void IKDemo::UpdateTargetPos()
 }
 
 void IKDemo::UpdateIkObject()
-{
-	XMVECTOR targetPosition = XMVectorZero();
-	XMVECTOR absEEPos = XMVectorZero();
-	XMVECTOR lastAbsEEPos = XMVectorZero();
-
-	float threshold = 0.001f;
-	breakButton = false;
-
-	while ((GetDistance(targetPosition, absEEPos) > threshold))
-	{
-		std::stack<XMMATRIX> matStack;
-		XMMATRIX lastMat = mJointMats[0];
-		matStack.push(lastMat);
-		for (int i = 1; i < mJointNum; ++i)
-		{
-			XMMATRIX currentMat = lastMat * mJointMats[i];
-			matStack.push(currentMat);
-			lastMat = currentMat;
-		}
-
-		XMMATRIX EEMat = matStack.top();
-		matStack.pop();
-
-		absEEPos = GetDecomposedTranslation(EEMat);
-		XMFLOAT3 absEEPosF(0, 0, 0);
-
-		XMStoreFloat3(&absEEPosF, absEEPos);
-		targetPosition = XMLoadFloat4(&mTargetPosition);
-
-		//mJointMats: 상대위치
-		for (int i = mEEIdx - 1; i >= 0; --i)
-		{
-			XMMATRIX currentAbsMat = matStack.top();
-			matStack.pop();
-
-			XMVECTOR currentAbsPos = GetDecomposedTranslation(currentAbsMat);
-
-			XMVECTOR jointToEE = (XMVectorSubtract(absEEPos, currentAbsPos));
-			XMVECTOR jointToDestination = (XMVectorSubtract(targetPosition, currentAbsPos));
-
-			XMVECTOR rotation_axis = (XMVector3Cross(jointToEE, jointToDestination));
-			if(XMVector3Equal(rotation_axis, XMVectorZero()) == true)
-			{
-				continue;
-			}
-			auto dot = XMVector3Dot(jointToEE, jointToDestination).m128_f32[0];
-			auto length = XMVector3Length(jointToEE).m128_f32[0] * XMVector3Length(jointToDestination).m128_f32[0];
-			float rotation_angle = std::acos(dot / length);
-
-			mJointMats[i] = XMMatrixRotationAxis(rotation_axis, rotation_angle) * mJointMats[i];
-			for(int j = i + 1 ; j <= mEEIdx; ++j)
-			{
-				mJointMats[j] = XMMatrixRotationAxis(rotation_axis, rotation_angle) * mJointMats[j];//여기서 translation이 같이 곱해져서 문제가 생긴다. 회전만 적용해야 한다! 
-			}
-
-			lastAbsEEPos = absEEPos;
-			absEEPos = GetDecomposedTranslation(mJointMats[mEEIdx]);
-
-			if (GetDistance(targetPosition, absEEPos) < threshold)
-			{
-				//Approach complete.
-				break;
-			}
-		}
-
-		if (GetDistance(lastAbsEEPos, absEEPos) < threshold)
-		{
-			if (breakButton == false)
-			{
-				breakButton = true;
-			}
-			else
-			{
-				//Can't approach
-				break;
-			}
-		}
-		auto distance = GetDistance(targetPosition, absEEPos);
-	}
-
-	auto targetTest = targetPosition;
-	auto eeTest = absEEPos;
-}
-
-void IKDemo::UpdateIkObject2()
 {
 	//각 joint의 절대좌표를 계산한다. 절대좌표는 각 joint가 회전될때마다 EE부터 root까지 순서대로 바뀐다.
 	std::vector<XMMATRIX> absMats;

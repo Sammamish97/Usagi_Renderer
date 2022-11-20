@@ -60,7 +60,7 @@ public:
     void OnMouseButtonReleased(MouseButtonEventArgs& e);
 
 private:
-    void InitBoneObject(int linkNum = 3);
+    void InitBoneObject(int linkNum = 5);
     void InitDescriptorHeaps();
     void InitRenderTarget();
     void InitGui();
@@ -68,7 +68,6 @@ private:
     void UpdateConstantBuffer(UpdateEventArgs& e);
     void UpdateTargetPos();
     void UpdateIkObject();
-    void UpdateIkObject2();
     void UpdateHirarchyTest();
     
     void DrawObject(CommandList& cmdList, D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle);
@@ -111,7 +110,7 @@ private:
     bool breakButton = false;
 
     std::shared_ptr<Object> mTarget;
-    XMFLOAT4 mTargetPosition = XMFLOAT4(4, 4, 0, 1);
+    XMFLOAT4 mTargetPosition = XMFLOAT4(0.8, 0.8, 0, 1);
 
     std::unique_ptr<ForwardPass> mForwardPass;
     std::unique_ptr<LinePass> mLinePass;
