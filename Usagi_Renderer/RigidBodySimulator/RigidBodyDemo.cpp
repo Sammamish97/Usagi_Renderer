@@ -84,6 +84,17 @@ void RigidBodyDemo::PrepareBuffers(CommandList& cmdList)
 	mVertexBufferView.StrideInBytes = sizeof(Particle);
 }
 
+void RigidBodyDemo::BuildComputeList()
+{
+	auto device = DxEngine::Get().GetDevice();
+	auto commandQueue = DxEngine::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+	auto cmdList = commandQueue->GetCommandList();
+}
+
+void RigidBodyDemo::BuildGraphicsList()
+{
+}
+
 void RigidBodyDemo::Draw(CommandList& cmdList)
 {
 	cmdList.SetComputeRootSignature(mComputePass->mRootSig);

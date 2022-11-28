@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <string>
 #include <memory>
+#include <array>
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
@@ -25,6 +26,7 @@ struct Particle
 
 class CommandList;
 class ComputePass;
+class DrawPass;
 class RigidBodyDemo : public IDemo
 {
 public:
@@ -35,6 +37,9 @@ public:
 private:
 	void PrepareBuffers(CommandList& cmdList);
 	void Draw(CommandList& cmdList);
+
+	void BuildComputeList();
+	void BuildGraphicsList();
 private:
 	Camera mCamera;
 
@@ -49,7 +54,7 @@ private:
 	int mHeight = 0;
 
 private:
-	ComPtr<ID3D12DescriptorHeap> mDemoSrvUavCbvHeap = NULL;
+	std::array < ComPtr<ID3D12DescriptorHeap>, 2> mComputeDescHeaps;
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE mUavInputDesc;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mUavOutputDesc;
@@ -62,6 +67,10 @@ private:
 
 	std::unordered_map<std::string, ComPtr<ID3DBlob>> mShaders;
 	std::unique_ptr<ComputePass> mComputePass;
+	std::unique_ptr<DrawPass> mDrawPass;
+
+	std::array<std::shared_ptr<CommandList>, 2> mComputeLists;
+	std::shared_ptr<CommandList> mGraphicsList;
 
 private:
 	struct Cloth {
