@@ -91,6 +91,5 @@ private:
 
     // The size of each page of memory.
     size_t m_PageSize;
-
 };
 

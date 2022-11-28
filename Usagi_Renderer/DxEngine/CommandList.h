@@ -154,7 +154,7 @@ public:
 
     void SetPipelineState(ComPtr<ID3D12PipelineState> pipelineState);
     void SetGraphicsRootSignature(ComPtr<ID3D12RootSignature> rootSignature);
-
+    void SetComputeRootSignature(ComPtr<ID3D12RootSignature> rootSignature);
     void SetSingleRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle);
 
     void SetDescriptorHeap(ComPtr<ID3D12DescriptorHeap> heap);

@@ -21,15 +21,8 @@ public:
         return m_ElementSize;
     }
 
-    const ByteAddressBuffer& GetCounterBuffer() const
-    {
-        return m_CounterBuffer;
-    }
-
 private:
     size_t m_NumElements;
     size_t m_ElementSize;
-
-    ByteAddressBuffer m_CounterBuffer;
 };
 

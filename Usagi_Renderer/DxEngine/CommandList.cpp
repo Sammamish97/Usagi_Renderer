@@ -502,6 +502,14 @@ void CommandList::SetGraphicsRootSignature(ComPtr<ID3D12RootSignature> rootSigna
     TrackResource(rootSignature);//Maybe do not need.
 }
 
+void CommandList::SetComputeRootSignature(ComPtr<ID3D12RootSignature> rootSignature)
+{
+    m_d3d12CommandList->SetComputeRootSignature(rootSignature.Get());
+
+    TrackResource(rootSignature);//Maybe do not need.
+}
+
+
 void CommandList::SetSingleRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle,
     D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle)
 {

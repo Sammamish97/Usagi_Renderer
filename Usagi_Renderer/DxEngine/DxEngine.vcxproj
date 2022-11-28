@@ -90,6 +90,7 @@
     <ClInclude Include="CommandQueue.h" />
     <ClInclude Include="ConstantBuffer.h" />
     <ClInclude Include="d3dx12.h" />
+    <ClInclude Include="DefaultBuffer.h" />
     <ClInclude Include="DescriptorHeap.h" />
     <ClInclude Include="DxEngine.h" />
     <ClInclude Include="DxUtil.h" />
@@ -124,6 +125,7 @@
     <ClCompile Include="CommandList.cpp" />
     <ClCompile Include="CommandQueue.cpp" />
     <ClCompile Include="ConstantBuffer.cpp" />
+    <ClCompile Include="DefaultBuffer.cpp" />
     <ClCompile Include="DescriptorHeap.cpp" />
     <ClCompile Include="DxEngine.cpp" />
     <ClCompile Include="DxUtil.cpp" />
