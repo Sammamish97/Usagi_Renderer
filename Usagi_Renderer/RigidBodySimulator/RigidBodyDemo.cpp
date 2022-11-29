@@ -18,6 +18,7 @@ RigidBodyDemo::RigidBodyDemo(const std::wstring& name, int width, int height, bo
 {
 
 }
+
 bool RigidBodyDemo::LoadContent()
 {
 	auto device = DxEngine::Get().GetDevice();
@@ -33,8 +34,6 @@ bool RigidBodyDemo::LoadContent()
 
 	auto fenceValue = commandQueue->ExecuteCommandList(cmdList);
 	commandQueue->WaitForFenceValue(fenceValue);
-
-	BuildComputeList();
 	return true;
 }
 
@@ -88,6 +87,12 @@ void RigidBodyDemo::PrepareBuffers(CommandList& cmdList)
 	mVertexBufferView.SizeInBytes = particlebuffer.size() * sizeof(Particle);
 	mVertexBufferView.StrideInBytes = sizeof(Particle);
 
+	computeDatas.restDistH = dx;
+	computeDatas.restDistV = dy;
+	computeDatas.restDistD = sqrtf(dx * dx + dy * dy);
+	computeDatas.particleCount = cloth.gridsize;
+	computeDatas.deltaT = 0.000005f;
+
 	ResourceStateTracker::AddGlobalResourceState(mVertexInput->GetD3D12Resource().Get(), D3D12_RESOURCE_STATE_COMMON);
 	ResourceStateTracker::AddGlobalResourceState(mVertexOutput->GetD3D12Resource().Get(), D3D12_RESOURCE_STATE_COMMON);
 }
@@ -96,21 +101,32 @@ void RigidBodyDemo::BuildComputeList()
 {
 	auto device = DxEngine::Get().GetDevice();
 	auto commandQueue = DxEngine::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
-	mComputeList = commandQueue->GetCommandList();
+	auto mComputeList = commandQueue->GetCommandList();
 	//Graphis to Compute Barrier
-	int readSet = 0;
+	int readSet = 1;
 	const int iteration = 64;
 	int calcNormal = 0;
 
 	mComputeList->SetPipelineState(mComputePass->mPSO);
 	mComputeList->SetComputeRootSignature(mComputePass->mRootSig);
+	mComputeList->SetComputeDynamicConstantBuffer(2, computeDatas);
 	mComputeList->SetCompute32BitConstants(3, calcNormal);
-
-	for (int i = 0; i < iteration; ++i)
+	for (int i = 0; i < 1; ++i)
 	{
 		readSet = 1 - readSet;
-		mComputeList->SetDescriptorHeap(mComputeDescHeaps[readSet]->GetDescriptorHeap());
-
+		if(readSet)
+		{
+			/*mComputeList->SetDescriptorHeap(mComputeDescHeaps[readSet]->GetDescriptorHeap());
+			mComputeList->SetComputeRootSRV(0, mVertexOutput->GetD3D12Resource()->GetGPUVirtualAddress());
+			mComputeList->SetComputeRootUAV(1, mVertexInput->GetD3D12Resource()->GetGPUVirtualAddress());*/
+		}
+		else
+		{
+			mComputeList->SetDescriptorHeap(mComputeDescHeaps[readSet]->GetDescriptorHeap());
+			mComputeList->SetComputeRootSRV(0, mVertexInput->GetD3D12Resource()->GetGPUVirtualAddress());
+			mComputeList->SetComputeRootUAV(1, mVertexOutput->GetD3D12Resource()->GetGPUVirtualAddress());
+		}
+		
 		if (i == iteration - 1)
 		{
 			calcNormal = 1;
@@ -125,16 +141,17 @@ void RigidBodyDemo::BuildComputeList()
 			mComputeList->UAVBarrier(*mVertexOutput);
 		}
 	}
-	mComputeList->Close();
+	mComputeList->UAVBarrier(*mVertexInput);
+	mComputeList->UAVBarrier(*mVertexOutput);
 	//Compute To Graphics Barrier
 	//Close buffer.
+	auto fenceValue = commandQueue->ExecuteCommandList(mComputeList);
 }
 
 void RigidBodyDemo::BuildGraphicsList()
 {
 	auto device = DxEngine::Get().GetDevice();
 	auto commandQueue = DxEngine::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
-	mGraphicsList = commandQueue->GetCommandList();
 
 
 }
@@ -178,7 +195,6 @@ void RigidBodyDemo::BuildComputeDescriptorHeaps()
 void RigidBodyDemo::Draw(CommandList& cmdList)
 {
 	//Run Compute
-	
 }
 
 void RigidBodyDemo::OnUpdate(UpdateEventArgs& e)
@@ -188,7 +204,6 @@ void RigidBodyDemo::OnUpdate(UpdateEventArgs& e)
 
 void RigidBodyDemo::OnRender(RenderEventArgs& e)
 {
-	auto commandQueue = DxEngine::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
-	auto fenceValue = commandQueue->ExecuteCommandList(mComputeList);
-	commandQueue->WaitForFenceValue(fenceValue);
+	BuildComputeList();
+
 }

@@ -25,6 +25,21 @@ struct Particle
 	XMFLOAT3 _pad0;
 };
 
+struct ComputeConstants
+{
+	float deltaT = 0.0f;
+	float particleMass = 0.1f;
+	float springStiffness = 2000.0f;
+	float damping = 0.25f;
+	float restDistH;
+	float restDistV;
+	float restDistD;
+	float sphereRadius = 1.0f;
+	XMFLOAT4 spherePos = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	XMFLOAT4 gravity = XMFLOAT4(0.0f, 9.8f, 0.0f, 0.0f);
+	XMFLOAT2 particleCount;
+};
+
 class CommandList;
 class ComputePass;
 class DrawPass;
@@ -75,9 +90,7 @@ private:
 	std::unique_ptr<ComputePass> mComputePass;
 	std::unique_ptr<DrawPass> mDrawPass;
 
-	std::shared_ptr<CommandList> mComputeList;
-	std::shared_ptr<CommandList> mGraphicsList;
-
+	ComputeConstants computeDatas;
 private:
 	struct Cloth {
 		XMFLOAT2 gridsize = XMFLOAT2(60, 60);

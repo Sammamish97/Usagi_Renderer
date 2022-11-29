@@ -102,6 +102,13 @@ public:
         SetGraphicsDynamicConstantBuffer(rootParameterIndex, sizeof(T), &data);
     }
 
+    void SetComputeDynamicConstantBuffer(uint32_t rootParameterIndex, size_t sizeInBytes, const void* bufferData);
+    template<typename T>
+    void SetComputeDynamicConstantBuffer(uint32_t rootParameterIndex, const T& data)
+    {
+        SetComputeDynamicConstantBuffer(rootParameterIndex, sizeof(T), &data);
+    }
+
     void SetGraphics32BitConstants(uint32_t rootParameterIndex, uint32_t numConstants, const void* constants);
     template<typename T>
     void SetGraphics32BitConstants(uint32_t rootParameterIndex, const T& constants)
@@ -156,6 +163,9 @@ public:
     void SetGraphicsRootSignature(ComPtr<ID3D12RootSignature> rootSignature);
     void SetComputeRootSignature(ComPtr<ID3D12RootSignature> rootSignature);
     void SetSingleRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle);
+
+    void SetComputeRootSRV(UINT rootIndex, D3D12_GPU_VIRTUAL_ADDRESS gpuAddress);
+    void SetComputeRootUAV(UINT rootIndex, D3D12_GPU_VIRTUAL_ADDRESS gpuAddress);
 
     void SetDescriptorHeap(ComPtr<ID3D12DescriptorHeap> heap);
 
