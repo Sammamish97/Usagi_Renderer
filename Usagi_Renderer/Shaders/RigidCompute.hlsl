@@ -28,6 +28,13 @@ cbuffer common : register(b0)
     CommonData params;
 };
 
+struct DrawNormal
+{
+    int data;
+};
+
+ConstantBuffer<DrawNormal> drawNormal : register(b1);
+
 float3 springForce(float3 p0, float3 p1, float restDist)
 {
 	float3 dist = p0 - p1;

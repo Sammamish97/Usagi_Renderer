@@ -4,6 +4,7 @@
 #include "StructuredBuffer.h"
 #include "d3dx12.h"
 #include "IndexBuffer.h"
+#include "DescriptorHeap.h"
 
 #include <d3d12.h>
 #include <wrl.h>
@@ -34,12 +35,17 @@ public:
 	bool LoadContent();
 	void UnloadContent();
 
+	void OnUpdate(UpdateEventArgs& e);
+	void OnRender(RenderEventArgs& e);
+
 private:
 	void PrepareBuffers(CommandList& cmdList);
 	void Draw(CommandList& cmdList);
 
 	void BuildComputeList();
 	void BuildGraphicsList();
+	void BuildComputeDescriptorHeaps();
+
 private:
 	Camera mCamera;
 
@@ -54,7 +60,7 @@ private:
 	int mHeight = 0;
 
 private:
-	std::array < ComPtr<ID3D12DescriptorHeap>, 2> mComputeDescHeaps;
+	std::array<std::unique_ptr<DescriptorHeap>, 2> mComputeDescHeaps;
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE mUavInputDesc;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mUavOutputDesc;
@@ -69,7 +75,7 @@ private:
 	std::unique_ptr<ComputePass> mComputePass;
 	std::unique_ptr<DrawPass> mDrawPass;
 
-	std::array<std::shared_ptr<CommandList>, 2> mComputeLists;
+	std::shared_ptr<CommandList> mComputeList;
 	std::shared_ptr<CommandList> mGraphicsList;
 
 private:

@@ -4,7 +4,9 @@
 #include "CommandQueue.h"
 #include "CommandList.h"
 #include "ComputePass.h"
+#include "DrawPass.h"
 #include "DxUtil.h"
+#include "ResourceStateTracker.h"
 
 RigidBodyDemo::RigidBodyDemo(const std::wstring& name, int width, int height, bool vSync)
 	:IDemo(name, width, height, vSync)
@@ -23,6 +25,7 @@ bool RigidBodyDemo::LoadContent()
 	auto cmdList = commandQueue->GetCommandList();
 
 	PrepareBuffers(*cmdList);
+	BuildComputeDescriptorHeaps();
 
 	mShaders["RigidCS"] = DxUtil::CompileShader(L"../shaders/RigidCompute.hlsl", nullptr, "CS", "cs_5_1");
 
@@ -30,6 +33,8 @@ bool RigidBodyDemo::LoadContent()
 
 	auto fenceValue = commandQueue->ExecuteCommandList(cmdList);
 	commandQueue->WaitForFenceValue(fenceValue);
+
+	BuildComputeList();
 	return true;
 }
 
@@ -82,28 +87,108 @@ void RigidBodyDemo::PrepareBuffers(CommandList& cmdList)
 	mVertexBufferView.BufferLocation = mVertexOutput->GetD3D12Resource()->GetGPUVirtualAddress();
 	mVertexBufferView.SizeInBytes = particlebuffer.size() * sizeof(Particle);
 	mVertexBufferView.StrideInBytes = sizeof(Particle);
+
+	ResourceStateTracker::AddGlobalResourceState(mVertexInput->GetD3D12Resource().Get(), D3D12_RESOURCE_STATE_COMMON);
+	ResourceStateTracker::AddGlobalResourceState(mVertexOutput->GetD3D12Resource().Get(), D3D12_RESOURCE_STATE_COMMON);
 }
 
 void RigidBodyDemo::BuildComputeList()
 {
 	auto device = DxEngine::Get().GetDevice();
 	auto commandQueue = DxEngine::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
-	auto cmdList = commandQueue->GetCommandList();
+	mComputeList = commandQueue->GetCommandList();
+	//Graphis to Compute Barrier
+	int readSet = 0;
+	const int iteration = 64;
+	int calcNormal = 0;
+
+	mComputeList->SetPipelineState(mComputePass->mPSO);
+	mComputeList->SetComputeRootSignature(mComputePass->mRootSig);
+	mComputeList->SetCompute32BitConstants(3, calcNormal);
+
+	for (int i = 0; i < iteration; ++i)
+	{
+		readSet = 1 - readSet;
+		mComputeList->SetDescriptorHeap(mComputeDescHeaps[readSet]->GetDescriptorHeap());
+
+		if (i == iteration - 1)
+		{
+			calcNormal = 1;
+			mComputeList->SetCompute32BitConstants(3, calcNormal);
+		}
+
+		mComputeList->Dispatch(cloth.gridsize.x / 10, cloth.gridsize.y / 10, 1);
+		if (i != iteration - 1)
+		{
+			//Compute To Compute Barrier
+			mComputeList->UAVBarrier(*mVertexInput);
+			mComputeList->UAVBarrier(*mVertexOutput);
+		}
+	}
+	mComputeList->Close();
+	//Compute To Graphics Barrier
+	//Close buffer.
 }
 
 void RigidBodyDemo::BuildGraphicsList()
 {
+	auto device = DxEngine::Get().GetDevice();
+	auto commandQueue = DxEngine::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+	mGraphicsList = commandQueue->GetCommandList();
+
+
+}
+
+void RigidBodyDemo::BuildComputeDescriptorHeaps()
+{
+	auto descSize = DxEngine::Get().GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	mComputeDescHeaps[0] = std::make_unique<DescriptorHeap>(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, descSize, 3);
+	mComputeDescHeaps[1] = std::make_unique<DescriptorHeap>(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, descSize, 3);
+	D3D12_BUFFER_SRV buffer;
+	buffer.FirstElement = 0;
+	buffer.NumElements = mVertexInput->GetNumElements();
+	buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+	buffer.StructureByteStride = mVertexInput->GetElementSize();
+
+	D3D12_BUFFER_UAV uav_buffer;
+	uav_buffer.FirstElement = 0;
+	uav_buffer.NumElements = mVertexInput->GetNumElements();
+	uav_buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+	uav_buffer.StructureByteStride = mVertexInput->GetElementSize();
+	uav_buffer.CounterOffsetInBytes = 0;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	srvDesc.Format = mVertexInput->GetD3D12ResourceDesc().Format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	srvDesc.Buffer = buffer;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc;
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	uavDesc.Format = mVertexInput->GetD3D12ResourceDesc().Format;
+	uavDesc.Buffer = uav_buffer;
+
+	DxEngine::Get().CreateSrvDescriptor(srvDesc, mVertexInput.get()->GetD3D12Resource(), mComputeDescHeaps[0]->GetCpuHandle(0));
+	DxEngine::Get().CreateUavDescriptor(uavDesc, mVertexOutput.get()->GetD3D12Resource(), mComputeDescHeaps[0]->GetCpuHandle(1));
+
+	DxEngine::Get().CreateSrvDescriptor(srvDesc, mVertexOutput.get()->GetD3D12Resource(), mComputeDescHeaps[1]->GetCpuHandle(0));
+	DxEngine::Get().CreateUavDescriptor(uavDesc, mVertexInput.get()->GetD3D12Resource(), mComputeDescHeaps[1]->GetCpuHandle(1));
 }
 
 void RigidBodyDemo::Draw(CommandList& cmdList)
 {
-	cmdList.SetComputeRootSignature(mComputePass->mRootSig);
-	cmdList.SetDescriptorHeap(mDemoSrvUavCbvHeap);
-
-	cmdList.SetPipelineState(mComputePass->mPSO);
+	//Run Compute
 	
-	for (int i = 0; i < 64; ++i)
-	{
-		cmdList.Dispatch(cloth.gridsize.x / 10, cloth.gridsize.y / 10, 1);
-	}
+}
+
+void RigidBodyDemo::OnUpdate(UpdateEventArgs& e)
+{
+	
+}
+
+void RigidBodyDemo::OnRender(RenderEventArgs& e)
+{
+	auto commandQueue = DxEngine::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+	auto fenceValue = commandQueue->ExecuteCommandList(mComputeList);
+	commandQueue->WaitForFenceValue(fenceValue);
 }
