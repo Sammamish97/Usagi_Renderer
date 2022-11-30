@@ -36,6 +36,13 @@ struct DrawNormal
 
 ConstantBuffer<DrawNormal> drawNormal : register(b1);
 
+struct RemovePin
+{
+    float data;
+};
+
+ConstantBuffer<RemovePin> removePin : register(b2);
+
 float3 springForce(float3 p0, float3 p1, float restDist)
 {
 	float3 dist = p0 - p1;
@@ -49,13 +56,17 @@ void CS(uint3 id : SV_DispatchThreadID)
         if (index > params.particleCount.x * params.particleCount.y)
             return;
 
+        if(removePin.data == 1.0)
+        {
+            particleOut[index].pinned = 0.0;
+        }
+
         // Pinned?
         if (particleIn[index].pinned == 1.0) {
-            particleOut[index].pos = particleOut[index].pos;
+            particleOut[index].pos = particleIn[index].pos;
             particleOut[index].vel = float4(0, 0, 0, 0);
             return;
         }
-
         // Initial force from gravity
         float3 force = params.gravity.xyz * params.particleMass;
 
@@ -113,35 +124,39 @@ void CS(uint3 id : SV_DispatchThreadID)
         }
 
         // Normals
-        float3 normal = float3(0, 0, 0);
-        float3 a, b, c;
-        if (id.y > 0) {
-            if (id.x > 0) {
-                a = particleIn[index - 1].pos.xyz - pos;
-                b = particleIn[index - params.particleCount.x - 1].pos.xyz - pos;
-                c = particleIn[index - params.particleCount.x].pos.xyz - pos;
-                normal += cross(a,b) + cross(b,c);
+        if (drawNormal.data == 1) 
+        {
+            float3 normal = float3(0, 0, 0);
+            float3 a, b, c;
+            if (id.y > 0) {
+                if (id.x > 0) {
+                    a = particleIn[index - 1].pos.xyz - pos;
+                    b = particleIn[index - params.particleCount.x - 1].pos.xyz - pos;
+                    c = particleIn[index - params.particleCount.x].pos.xyz - pos;
+                    normal += cross(a,b) + cross(b,c);
+                }
+                if (id.x < params.particleCount.x - 1) {
+                    a = particleIn[index - params.particleCount.x].pos.xyz - pos;
+                    b = particleIn[index - params.particleCount.x + 1].pos.xyz - pos;
+                    c = particleIn[index + 1].pos.xyz - pos;
+                    normal += cross(a,b) + cross(b,c);
+                }
             }
-            if (id.x < params.particleCount.x - 1) {
-                a = particleIn[index - params.particleCount.x].pos.xyz - pos;
-                b = particleIn[index - params.particleCount.x + 1].pos.xyz - pos;
-                c = particleIn[index + 1].pos.xyz - pos;
-                normal += cross(a,b) + cross(b,c);
+            if (id.y < params.particleCount.y - 1) {
+                if (id.x > 0) {
+                    a = particleIn[index + params.particleCount.x].pos.xyz - pos;
+                    b = particleIn[index + params.particleCount.x - 1].pos.xyz - pos;
+                    c = particleIn[index - 1].pos.xyz - pos;
+                    normal += cross(a,b) + cross(b,c);
+                }
+                if (id.x < params.particleCount.x - 1) {
+                    a = particleIn[index + 1].pos.xyz - pos;
+                    b = particleIn[index + params.particleCount.x + 1].pos.xyz - pos;
+                    c = particleIn[index + params.particleCount.x].pos.xyz - pos;
+                    normal += cross(a,b) + cross(b,c);
+                }
             }
+            particleOut[index].normal = float4(normalize(normal), 0.0f);
         }
-        if (id.y < params.particleCount.y - 1) {
-            if (id.x > 0) {
-                a = particleIn[index + params.particleCount.x].pos.xyz - pos;
-                b = particleIn[index + params.particleCount.x - 1].pos.xyz - pos;
-                c = particleIn[index - 1].pos.xyz - pos;
-                normal += cross(a,b) + cross(b,c);
-            }
-            if (id.x < params.particleCount.x - 1) {
-                a = particleIn[index + 1].pos.xyz - pos;
-                b = particleIn[index + params.particleCount.x + 1].pos.xyz - pos;
-                c = particleIn[index + params.particleCount.x].pos.xyz - pos;
-                normal += cross(a,b) + cross(b,c);
-            }
-        }
-        particleOut[index].normal = float4(normalize(normal), 0.0f);
+        
 }

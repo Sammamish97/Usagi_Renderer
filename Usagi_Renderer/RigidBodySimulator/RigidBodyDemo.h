@@ -16,8 +16,29 @@
 
 #include "RenderTarget.h"
 
+class Model;
+class Object;
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
+struct CommonCB
+{
+	XMFLOAT4X4 View = MathHelper::Identity4x4();
+	XMFLOAT4X4 InvView = MathHelper::Identity4x4();
+	XMFLOAT4X4 Proj = MathHelper::Identity4x4();
+	XMFLOAT4X4 InvProj = MathHelper::Identity4x4();
+	XMFLOAT4X4 ViewProj = MathHelper::Identity4x4();
+	XMFLOAT4X4 InvViewProj = MathHelper::Identity4x4();
+	XMFLOAT4X4 ViewProjTex = MathHelper::Identity4x4();
+	XMFLOAT3 EyePosW = { 0.0f, 0.0f, 0.0f };
+	float cbPerObjectPad1 = 0.0f;
+	XMFLOAT2 RenderTargetSize = { 0.0f, 0.0f };
+	XMFLOAT2 InvRenderTargetSize = { 0.0f, 0.0f };
+	float NearZ = 0.0f;
+	float FarZ = 0.0f;
+	float TotalTime = 0.0f;
+	float DeltaTime = 0.0f;
+};
+
 struct Particle 
 {
 	XMVECTOR pos;
@@ -46,6 +67,7 @@ struct ComputeConstants
 class CommandList;
 class ComputePass;
 class DrawPass;
+class ForwardPass;
 class RigidBodyDemo : public IDemo
 {
 public:
@@ -62,9 +84,10 @@ private:
 	void PrepareBuffers(CommandList& cmdList);
 
 	void ComputeCall(CommandList& cmdList);
-	void RenderCall(CommandList& cmdList);
+	void ClothRenderCall(CommandList& cmdList);
+	void ObjectRenderCall(CommandList& cmdList);
 
-	void BuildComputeDescriptorHeaps();
+	void UpdateConstantBuffer(UpdateEventArgs& e);
 
 	void OnMouseMoved(MouseMotionEventArgs& e);
 	void OnMouseButtonPressed(MouseButtonEventArgs& e);
@@ -94,6 +117,10 @@ private:
 	int mWidth = 0;
 	int mHeight = 0;
 
+	std::shared_ptr<Object> mSphere;
+	std::unordered_map<std::string, std::shared_ptr<Model>> mModels;
+	CommonCB mCommonCB;
+
 private:
 	CD3DX12_CPU_DESCRIPTOR_HANDLE mUavInputDesc;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mUavOutputDesc;
@@ -108,10 +135,13 @@ private:
 	std::unordered_map<std::string, ComPtr<ID3DBlob>> mShaders;
 	std::unique_ptr<ComputePass> mComputePass;
 	std::unique_ptr<DrawPass> mDrawPass;
+	std::unique_ptr<ForwardPass> mForwardPass;
 
 	ComputeConstants computeDatas;
 
 	XMFLOAT4X4 mViewProjection;
+
+	float mRemovePin = 0.f;
 
 private:
 	struct Cloth {

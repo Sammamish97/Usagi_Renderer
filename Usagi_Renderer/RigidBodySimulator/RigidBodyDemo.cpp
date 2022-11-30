@@ -14,6 +14,9 @@
 #include "DxUtil.h"
 #include "ResourceStateTracker.h"
 #include "Window.h"
+#include "Model.h"
+#include "Object.h"
+#include "ForwardPass.h"
 
 RigidBodyDemo::RigidBodyDemo(const std::wstring& name, int width, int height, bool vSync)
 	:IDemo(name, width, height, vSync)
@@ -35,20 +38,24 @@ bool RigidBodyDemo::LoadContent()
 	auto cmdList = commandQueue->GetCommandList();
 
 	PrepareBuffers(*cmdList);
-	BuildComputeDescriptorHeaps();
 	InitDescriptorHeaps();
 	InitRenderTarget();
 
+	mModels["Sphere"] = std::make_shared<Model>("../models/Sphere.obj", *cmdList);
+	mSphere = std::make_shared<Object>(mModels["Sphere"], XMFLOAT3(0, 0, 0), XMFLOAT3(1, 1, 1), XMFLOAT3(1, 1, 1));
+
 	mShaders["RigidCS"] = DxUtil::CompileShader(L"../shaders/RigidCompute.hlsl", nullptr, "CS", "cs_5_1");
-	mShaders["ForwardVS"] = DxUtil::CompileShader(L"../shaders/Forward.hlsl", nullptr, "VS", "vs_5_1");
-	mShaders["ForwardPS"] = DxUtil::CompileShader(L"../shaders/Forward.hlsl", nullptr, "PS", "ps_5_1");
+
+	mShaders["SimpleForwardVS"] = DxUtil::CompileShader(L"../shaders/SimpleForward.hlsl", nullptr, "VS", "vs_5_1");
+	mShaders["SimpleForwardPS"] = DxUtil::CompileShader(L"../shaders/SimpleForward.hlsl", nullptr, "PS", "ps_5_1");
 
 	mShaders["RigidForwardVS"] = DxUtil::CompileShader(L"../shaders/RigidForward.hlsl", nullptr, "VS", "vs_5_1");
 	mShaders["RigidForwardPS"] = DxUtil::CompileShader(L"../shaders/RigidForward.hlsl", nullptr, "PS", "ps_5_1");
 
 	mComputePass = std::make_unique<ComputePass>(mShaders["RigidCS"]);
 	mDrawPass = std::make_unique<DrawPass>(mShaders["RigidForwardVS"], mShaders["RigidForwardPS"]);
-	
+	mForwardPass = std::make_unique<ForwardPass>(mShaders["SimpleForwardVS"], mShaders["SimpleForwardPS"]);
+
 	auto fenceValue = commandQueue->ExecuteCommandList(cmdList);
 	commandQueue->WaitForFenceValue(fenceValue);
 	return true;
@@ -107,8 +114,6 @@ void RigidBodyDemo::InitRenderTarget()
 	mRenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
 }
 
-
-
 void RigidBodyDemo::PrepareBuffers(CommandList& cmdList)
 {
 	D3D12_RESOURCE_FLAGS srvFlags = D3D12_RESOURCE_FLAG_NONE;
@@ -134,6 +139,11 @@ void RigidBodyDemo::PrepareBuffers(CommandList& cmdList)
 			particlebuffer[y + x * cloth.gridsize.y].pos = XMVector3Transform(XMLoadFloat3(&XMFLOAT3(dx * x, 0.f, dy * y)), translation);
 			particlebuffer[y + x * cloth.gridsize.y].vel = XMVectorZero();
 		}
+	}
+
+	for(int i = 0; i < 4; ++i)
+	{
+		particlebuffer[900 * i].pinned = 1.f;
 	}
 
 	cmdList.CopyStructuredBuffer(*mVertexInput, particlebuffer);
@@ -167,53 +177,18 @@ void RigidBodyDemo::PrepareBuffers(CommandList& cmdList)
 	ResourceStateTracker::AddGlobalResourceState(mVertexOutput->GetD3D12Resource().Get(), D3D12_RESOURCE_STATE_COMMON);
 }
 
-void RigidBodyDemo::BuildComputeDescriptorHeaps()
-{
-	/*auto descSize = DxEngine::Get().GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	mComputeDescHeaps[0] = std::make_unique<DescriptorHeap>(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, descSize, 3);
-	mComputeDescHeaps[1] = std::make_unique<DescriptorHeap>(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, descSize, 3);
-	D3D12_BUFFER_SRV buffer;
-	buffer.FirstElement = 0;
-	buffer.NumElements = mVertexInput->GetNumElements();
-	buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-	buffer.StructureByteStride = mVertexInput->GetElementSize();
-
-	D3D12_BUFFER_UAV uav_buffer;
-	uav_buffer.FirstElement = 0;
-	uav_buffer.NumElements = mVertexInput->GetNumElements();
-	uav_buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
-	uav_buffer.StructureByteStride = mVertexInput->GetElementSize();
-	uav_buffer.CounterOffsetInBytes = 0;
-
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-	srvDesc.Format = mVertexInput->GetD3D12ResourceDesc().Format;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-	srvDesc.Buffer = buffer;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-
-	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc;
-	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-	uavDesc.Format = mVertexInput->GetD3D12ResourceDesc().Format;
-	uavDesc.Buffer = uav_buffer;
-
-	DxEngine::Get().CreateSrvDescriptor(srvDesc, mVertexInput.get()->GetD3D12Resource(), mComputeDescHeaps[0]->GetCpuHandle(0));
-	DxEngine::Get().CreateUavDescriptor(uavDesc, mVertexOutput.get()->GetD3D12Resource(), mComputeDescHeaps[0]->GetCpuHandle(1));
-
-	DxEngine::Get().CreateSrvDescriptor(srvDesc, mVertexOutput.get()->GetD3D12Resource(), mComputeDescHeaps[1]->GetCpuHandle(0));
-	DxEngine::Get().CreateUavDescriptor(uavDesc, mVertexInput.get()->GetD3D12Resource(), mComputeDescHeaps[1]->GetCpuHandle(1));*/
-}
-
 void RigidBodyDemo::ComputeCall(CommandList& cmdList)
 {
 	//Graphis to Compute Barrier
 	int readSet = 1;
-	const int iteration = 64;
+	const int iteration = 65;
 	int calcNormal = 0;
 
 	cmdList.SetPipelineState(mComputePass->mPSO);
 	cmdList.SetComputeRootSignature(mComputePass->mRootSig);
 	cmdList.SetComputeDynamicConstantBuffer(2, computeDatas);
 	cmdList.SetCompute32BitConstants(3, calcNormal);
+
 	for (int i = 0; i < iteration; ++i)
 	{
 		readSet = 1 - readSet;
@@ -233,7 +208,7 @@ void RigidBodyDemo::ComputeCall(CommandList& cmdList)
 			calcNormal = 1;
 			cmdList.SetCompute32BitConstants(3, calcNormal);
 		}
-
+		cmdList.SetCompute32BitConstants(4, mRemovePin);
 		cmdList.Dispatch(cloth.gridsize.x / 10, cloth.gridsize.y / 10, 1);
 		if (i != iteration - 1)
 		{
@@ -244,7 +219,7 @@ void RigidBodyDemo::ComputeCall(CommandList& cmdList)
 	}
 }
 
-void RigidBodyDemo::RenderCall(CommandList& cmdList)
+void RigidBodyDemo::ClothRenderCall(CommandList& cmdList)
 {
 	auto rtvCpuHandle = mDescriptorHeaps[HeapType::RTV]->GetCpuHandle(mRtvIdx);
 	auto dsvCpuHandle = mDescriptorHeaps[HeapType::DSV]->GetCpuHandle(mDsvIdx);
@@ -270,17 +245,62 @@ void RigidBodyDemo::RenderCall(CommandList& cmdList)
 	cmdList.DrawIndexed(mClothIndexNum);
 }
 
-void RigidBodyDemo::OnUpdate(UpdateEventArgs& e)
+void RigidBodyDemo::ObjectRenderCall(CommandList& cmdList)
 {
-	IDemo::OnUpdate(e);
-	StartGuiFrame();
-	UpdateGui();
+	auto rtvCpuHandle = mDescriptorHeaps[HeapType::RTV]->GetCpuHandle(mRtvIdx);
+	auto dsvCpuHandle = mDescriptorHeaps[HeapType::DSV]->GetCpuHandle(mDsvIdx);
+
+	cmdList.SetPipelineState(mForwardPass->mPSO);
+	cmdList.SetGraphicsRootSignature(mForwardPass->mRootSig);
+
+	cmdList.SetViewport(m_Viewport);
+	cmdList.SetScissorRect(m_ScissorRect);
+
+	cmdList.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmdList.SetGraphics32BitConstants(0, mViewProjection);
+	cmdList.SetGraphicsDynamicConstantBuffer(1, sizeof(CommonCB), &mCommonCB);
+
+	cmdList.SetSingleRenderTarget(&rtvCpuHandle, &dsvCpuHandle);
+
+	mSphere->Draw(cmdList);
+}
+
+void RigidBodyDemo::UpdateConstantBuffer(UpdateEventArgs& e)
+{
 	XMMATRIX view = XMLoadFloat4x4(&mCamera.GetViewMat());
 	XMMATRIX proj = XMLoadFloat4x4(&mCamera.GetProjMat());
 
 	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-	XMStoreFloat4x4(&mViewProjection, XMMatrixTranspose(viewProj));
+	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
+	XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
+	XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+
+	XMStoreFloat4x4(&mCommonCB.View, XMMatrixTranspose(view));
+	XMStoreFloat4x4(&mCommonCB.InvView, XMMatrixTranspose(invView));
+	XMStoreFloat4x4(&mCommonCB.Proj, XMMatrixTranspose(proj));
+	XMStoreFloat4x4(&mCommonCB.InvProj, XMMatrixTranspose(invProj));
+	XMStoreFloat4x4(&mCommonCB.ViewProj, XMMatrixTranspose(viewProj));
+	XMStoreFloat4x4(&mCommonCB.InvViewProj, XMMatrixTranspose(invViewProj));
+
+	mCommonCB.EyePosW = mCamera.GetPosition();
+	mCommonCB.RenderTargetSize = XMFLOAT2((float)mWidth, (float)mHeight);
+	mCommonCB.InvRenderTargetSize = XMFLOAT2(1.0f / mWidth, 1.0f / mHeight);
+	mCommonCB.NearZ = 1.0f;
+	mCommonCB.FarZ = 1000.0f;
+
+	mCommonCB.TotalTime = e.TotalTime;
+	mCommonCB.DeltaTime = e.ElapsedTime;
+
+	mViewProjection = mCommonCB.ViewProj;
+}
+
+void RigidBodyDemo::OnUpdate(UpdateEventArgs& e)
+{
+	IDemo::OnUpdate(e);
+	UpdateConstantBuffer(e);
 	mCamera.Update(e);
+	StartGuiFrame();
+	UpdateGui();
 }
 
 void RigidBodyDemo::OnRender(RenderEventArgs& e)
@@ -289,10 +309,9 @@ void RigidBodyDemo::OnRender(RenderEventArgs& e)
 	auto commandQueue = DxEngine::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 	auto cmdList = commandQueue->GetCommandList();
 
-	
-
 	ComputeCall(*cmdList);
-	RenderCall(*cmdList);
+	ClothRenderCall(*cmdList);
+	ObjectRenderCall(*cmdList);
 	DrawGui(*cmdList);
 
 	commandQueue->ExecuteCommandList(cmdList);
@@ -388,6 +407,10 @@ void RigidBodyDemo::StartGuiFrame()
 void RigidBodyDemo::UpdateGui()
 {
 	ImGui::Begin("GUI");
+	if(ImGui::Button("Remove Pins"))
+	{
+		mRemovePin = 1.0f;
+	}
 	ImGui::End();
 }
 

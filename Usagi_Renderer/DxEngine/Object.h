@@ -17,6 +17,7 @@ public:
 public:
 	virtual void Update(float dt);
 	virtual void Draw(CommandList& commandList);
+	void DrawWithoutPos(CommandList& commandList);
 	XMMATRIX GetWorldMat() const;
 	void SetPosition(XMVECTOR newPos);
 	void SetPosition(XMFLOAT3 newPos);

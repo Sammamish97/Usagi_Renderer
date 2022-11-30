@@ -36,6 +36,14 @@ void Object::Draw(CommandList& commandList)
 	}
 }
 
+void Object::DrawWithoutPos(CommandList& commandList)
+{
+	for (auto& mesh : mModel->mMeshes)
+	{
+		mesh.Draw(commandList);
+	}
+}
+
 void Object::SetPosition(XMVECTOR newPos)
 {
 	XMStoreFloat3(&mPosition, newPos);

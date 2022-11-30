@@ -36,15 +36,12 @@ VertexOut VS(VertexIn vin)
 
 PS_OUTPUT PS(VertexOut pin)
 {
-    // float3 albedo = float3(1, 1, 1);
-    // float3 surfaceNormal = normalize(pin.NormalW);
-    // float3 lightDir = normalize(Direction);
-    // float ndotl = dot(surfaceNormal, lightDir);
-
-    // PS_OUTPUT output;
-    // output.Color = float4(albedo * ndotl, 1);
+    float3 albedo = float3(1, 1, 1);
+    float3 surfaceNormal = normalize(pin.NormalW);
+    float3 lightDir = float3(0, 1, 0);
+    float ndotl = dot(surfaceNormal, lightDir);
 
     PS_OUTPUT output;
-    output.Color = float4(1, 0, 0, 1);
+    output.Color = float4(albedo * ndotl, 1);
     return output;
 }

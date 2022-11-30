@@ -28,11 +28,13 @@ void ComputePass::InitRootSignature()
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
-	CD3DX12_ROOT_PARAMETER1 rootParameters[4];
+	CD3DX12_ROOT_PARAMETER1 rootParameters[5];
 	rootParameters[0].InitAsShaderResourceView(0);//SRV particle input
 	rootParameters[1].InitAsUnorderedAccessView(0);//UAV particle output
 	rootParameters[2].InitAsConstantBufferView(0);//Common datas
-	rootParameters[3].InitAsConstants(1, 1);
+	rootParameters[3].InitAsConstants(1, 1);//Draw Normal
+	rootParameters[4].InitAsConstants(1, 2);//Remove Pin
+
 
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDescription;
 	rootSignatureDescription.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
