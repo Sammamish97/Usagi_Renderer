@@ -126,6 +126,7 @@ public:
     }
 
     void SetVertexBuffer(uint32_t slot, const VertexBuffer& vertexBuffer);
+    void SetVertexBuffer(uint32_t slot, D3D12_VERTEX_BUFFER_VIEW& vertexBufferView);
 
     void SetDynamicVertexBuffer(uint32_t slot, size_t numVertices, size_t vertexSize, const void* vertexBufferData);
     template<typename T>

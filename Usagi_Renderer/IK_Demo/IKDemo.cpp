@@ -34,8 +34,8 @@ bool IKDemo::LoadContent()
 	mModels["Plane"] = std::make_shared<Model>("../models/Plane.obj", *cmdList);
 	mModels["Sphere"] = std::make_shared<Model>("../models/Sphere.obj", *cmdList);
 
-	mShaders["ForwardVS"] = DxUtil::CompileShader(L"../shaders/Forward.hlsl", nullptr, "VS", "vs_5_1");
-	mShaders["ForwardPS"] = DxUtil::CompileShader(L"../shaders/Forward.hlsl", nullptr, "PS", "ps_5_1");
+	mShaders["RigidForwardVS"] = DxUtil::CompileShader(L"../shaders/RigidForward.hlsl", nullptr, "VS", "vs_5_1");
+	mShaders["RigidForwardPS"] = DxUtil::CompileShader(L"../shaders/RigiForward.hlsl", nullptr, "PS", "ps_5_1");
 
 	mShaders["LineVS"] = DxUtil::CompileShader(L"../shaders/Line.hlsl", nullptr, "VS", "vs_5_1");
 	mShaders["LinePS"] = DxUtil::CompileShader(L"../shaders/Line.hlsl", nullptr, "PS", "ps_5_1");
@@ -43,7 +43,7 @@ bool IKDemo::LoadContent()
 	InitBoneObject();
 	mTarget = std::make_shared<Object>(mModels["Sphere"], XMFLOAT3(0, 0, 0), XMFLOAT3(1, 1, 1), XMFLOAT3(0.1, 0.1, 0.1));
 
-	mForwardPass = std::make_unique<ForwardPass>(mShaders["ForwardVS"], mShaders["ForwardPS"]);
+	mForwardPass = std::make_unique<ForwardPass>(mShaders["RigidForwardVS"], mShaders["RigidForwardPS"]);
 	mLinePass = std::make_unique<LinePass>(mShaders["LineVS"], mShaders["LinePS"]);
 
 	InitDescriptorHeaps();

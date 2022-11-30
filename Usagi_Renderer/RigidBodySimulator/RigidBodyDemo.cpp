@@ -1,4 +1,10 @@
 #include "RigidBodyDemo.h"
+
+#include <IMGUI/imgui.h>
+#include <IMGUI/imgui_impl_dx12.h>
+#include <IMGUI/imgui_impl_win32.h>
+
+#include "BufferFormat.h"
 #include "d3dx12.h"
 #include "DxEngine.h"
 #include "CommandQueue.h"
@@ -7,6 +13,7 @@
 #include "DrawPass.h"
 #include "DxUtil.h"
 #include "ResourceStateTracker.h"
+#include "Window.h"
 
 RigidBodyDemo::RigidBodyDemo(const std::wstring& name, int width, int height, bool vSync)
 	:IDemo(name, width, height, vSync)
@@ -16,22 +23,32 @@ RigidBodyDemo::RigidBodyDemo(const std::wstring& name, int width, int height, bo
 	, mHeight(height)
 	, mCamera(width / static_cast<float>(height))
 {
-
+	
 }
 
 bool RigidBodyDemo::LoadContent()
 {
+	InitGui();
+
 	auto device = DxEngine::Get().GetDevice();
 	auto commandQueue = DxEngine::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 	auto cmdList = commandQueue->GetCommandList();
 
 	PrepareBuffers(*cmdList);
 	BuildComputeDescriptorHeaps();
+	InitDescriptorHeaps();
+	InitRenderTarget();
 
 	mShaders["RigidCS"] = DxUtil::CompileShader(L"../shaders/RigidCompute.hlsl", nullptr, "CS", "cs_5_1");
+	mShaders["ForwardVS"] = DxUtil::CompileShader(L"../shaders/Forward.hlsl", nullptr, "VS", "vs_5_1");
+	mShaders["ForwardPS"] = DxUtil::CompileShader(L"../shaders/Forward.hlsl", nullptr, "PS", "ps_5_1");
+
+	mShaders["RigidForwardVS"] = DxUtil::CompileShader(L"../shaders/RigidForward.hlsl", nullptr, "VS", "vs_5_1");
+	mShaders["RigidForwardPS"] = DxUtil::CompileShader(L"../shaders/RigidForward.hlsl", nullptr, "PS", "ps_5_1");
 
 	mComputePass = std::make_unique<ComputePass>(mShaders["RigidCS"]);
-
+	mDrawPass = std::make_unique<DrawPass>(mShaders["RigidForwardVS"], mShaders["RigidForwardPS"]);
+	
 	auto fenceValue = commandQueue->ExecuteCommandList(cmdList);
 	commandQueue->WaitForFenceValue(fenceValue);
 	return true;
@@ -39,8 +56,58 @@ bool RigidBodyDemo::LoadContent()
 
 void RigidBodyDemo::UnloadContent()
 {
-	
+	ClearGui();
 }
+
+void RigidBodyDemo::InitDescriptorHeaps()
+{
+	mDescriptorHeaps[HeapType::RTV] = std::make_shared<DescriptorHeap>(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, DxEngine::Get().GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV), 128);
+	mDescriptorHeaps[HeapType::DSV] = std::make_shared<DescriptorHeap>(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, DxEngine::Get().GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV), 128);
+}
+
+void RigidBodyDemo::InitRenderTarget()
+{
+	//DXGI_SAMPLE_DESC sampleDesc = DxEngine::Get().GetMultisampleQualityLevels(BufferFormat::GetBufferFormat(BufferType::SWAPCHAIN), D3D12_MAX_MULTISAMPLE_SAMPLE_COUNT);
+	auto colorDesc = CD3DX12_RESOURCE_DESC::Tex2D(BufferFormat::GetBufferFormat(BufferType::SWAPCHAIN), mWidth, mHeight,
+		1, 1,
+		1, 0,
+		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+	D3D12_CLEAR_VALUE colorClearValue;
+	colorClearValue.Format = colorDesc.Format;
+	colorClearValue.Color[0] = 0.4f;
+	colorClearValue.Color[1] = 0.6f;
+	colorClearValue.Color[2] = 0.9f;
+	colorClearValue.Color[3] = 1.0f;
+
+	Texture colorTexture = Texture(colorDesc, &colorClearValue, TextureUsage::RenderTarget, L"Color Render Target");
+
+	// Create a depth buffer.
+	auto depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(BufferFormat::GetBufferFormat(BufferType::DEPTH_STENCIL_DSV),
+		mWidth, mHeight,
+		1, 1,
+		1, 0,
+		D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+	D3D12_CLEAR_VALUE depthClearValue;
+	depthClearValue.Format = depthDesc.Format;
+	depthClearValue.DepthStencil = { 1.0f, 0 };
+
+	Texture depthTexture = Texture(depthDesc, &depthClearValue,
+		TextureUsage::Depth,
+		L"Depth Render Target");
+
+	CD3DX12_RESOURCE_DESC rtvDesc(colorTexture.GetD3D12ResourceDesc());
+	mRtvIdx = mDescriptorHeaps[HeapType::RTV]->GetNextAvailableIndex();
+	DxEngine::Get().CreateRtvDescriptor(rtvDesc.Format, colorTexture.GetD3D12Resource(), mDescriptorHeaps[HeapType::RTV]->GetCpuHandle(mRtvIdx));
+
+	CD3DX12_RESOURCE_DESC dsvDesc(depthTexture.GetD3D12ResourceDesc());
+	mDsvIdx = mDescriptorHeaps[HeapType::DSV]->GetNextAvailableIndex();
+	DxEngine::Get().CreateDsvDescriptor(dsvDesc.Format, depthTexture.GetD3D12Resource(), mDescriptorHeaps[HeapType::DSV]->GetCpuHandle(mDsvIdx));
+
+	mRenderTarget.AttachTexture(AttachmentPoint::Color0, colorTexture);
+	mRenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
+}
+
+
 
 void RigidBodyDemo::PrepareBuffers(CommandList& cmdList)
 {
@@ -59,7 +126,7 @@ void RigidBodyDemo::PrepareBuffers(CommandList& cmdList)
 	float dx = cloth.size.x / (cloth.gridsize.x - 1);
 	float dy = cloth.size.y / (cloth.gridsize.y - 1);
 
-	XMMATRIX translation = XMMatrixTranslation(-cloth.size.x / 2.0f, -2.0f, -cloth.size.y / 2.0f);
+	XMMATRIX translation = XMMatrixTranslation(-cloth.size.x / 2.0f, 2.0f, -cloth.size.y / 2.0f);
 	for (int y = 0; y < cloth.gridsize.y; ++y)
 	{
 		for (int x = 0; x < cloth.gridsize.x; ++x)
@@ -74,14 +141,17 @@ void RigidBodyDemo::PrepareBuffers(CommandList& cmdList)
 	std::vector<uint32_t> indices;
 	for (uint32_t y = 0; y < cloth.gridsize.y - 1; ++y)
 	{
-		for (uint32_t x = 0; x < cloth.gridsize.x - 1; ++x)
+		for (uint32_t x = 0; x < cloth.gridsize.x; ++x)
 		{
 			indices.push_back((y + 1) * cloth.gridsize.x + x);
 			indices.push_back((y)*cloth.gridsize.x + x);
 		}
 		indices.push_back(0xFFFFFFFF);
 	}
+
+	mClothIndexNum = indices.size();
 	cmdList.CopyIndexBuffer(mIndexBuffer, indices);
+	mIndexBuffer.CreateIndexBufferView(mClothIndexNum, sizeof(uint32_t));
 
 	mVertexBufferView.BufferLocation = mVertexOutput->GetD3D12Resource()->GetGPUVirtualAddress();
 	mVertexBufferView.SizeInBytes = particlebuffer.size() * sizeof(Particle);
@@ -97,68 +167,9 @@ void RigidBodyDemo::PrepareBuffers(CommandList& cmdList)
 	ResourceStateTracker::AddGlobalResourceState(mVertexOutput->GetD3D12Resource().Get(), D3D12_RESOURCE_STATE_COMMON);
 }
 
-void RigidBodyDemo::BuildComputeList()
-{
-	auto device = DxEngine::Get().GetDevice();
-	auto commandQueue = DxEngine::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
-	auto mComputeList = commandQueue->GetCommandList();
-	//Graphis to Compute Barrier
-	int readSet = 1;
-	const int iteration = 64;
-	int calcNormal = 0;
-
-	mComputeList->SetPipelineState(mComputePass->mPSO);
-	mComputeList->SetComputeRootSignature(mComputePass->mRootSig);
-	mComputeList->SetComputeDynamicConstantBuffer(2, computeDatas);
-	mComputeList->SetCompute32BitConstants(3, calcNormal);
-	for (int i = 0; i < 1; ++i)
-	{
-		readSet = 1 - readSet;
-		if(readSet)
-		{
-			/*mComputeList->SetDescriptorHeap(mComputeDescHeaps[readSet]->GetDescriptorHeap());
-			mComputeList->SetComputeRootSRV(0, mVertexOutput->GetD3D12Resource()->GetGPUVirtualAddress());
-			mComputeList->SetComputeRootUAV(1, mVertexInput->GetD3D12Resource()->GetGPUVirtualAddress());*/
-		}
-		else
-		{
-			mComputeList->SetDescriptorHeap(mComputeDescHeaps[readSet]->GetDescriptorHeap());
-			mComputeList->SetComputeRootSRV(0, mVertexInput->GetD3D12Resource()->GetGPUVirtualAddress());
-			mComputeList->SetComputeRootUAV(1, mVertexOutput->GetD3D12Resource()->GetGPUVirtualAddress());
-		}
-		
-		if (i == iteration - 1)
-		{
-			calcNormal = 1;
-			mComputeList->SetCompute32BitConstants(3, calcNormal);
-		}
-
-		mComputeList->Dispatch(cloth.gridsize.x / 10, cloth.gridsize.y / 10, 1);
-		if (i != iteration - 1)
-		{
-			//Compute To Compute Barrier
-			mComputeList->UAVBarrier(*mVertexInput);
-			mComputeList->UAVBarrier(*mVertexOutput);
-		}
-	}
-	mComputeList->UAVBarrier(*mVertexInput);
-	mComputeList->UAVBarrier(*mVertexOutput);
-	//Compute To Graphics Barrier
-	//Close buffer.
-	auto fenceValue = commandQueue->ExecuteCommandList(mComputeList);
-}
-
-void RigidBodyDemo::BuildGraphicsList()
-{
-	auto device = DxEngine::Get().GetDevice();
-	auto commandQueue = DxEngine::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
-
-
-}
-
 void RigidBodyDemo::BuildComputeDescriptorHeaps()
 {
-	auto descSize = DxEngine::Get().GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	/*auto descSize = DxEngine::Get().GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	mComputeDescHeaps[0] = std::make_unique<DescriptorHeap>(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, descSize, 3);
 	mComputeDescHeaps[1] = std::make_unique<DescriptorHeap>(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, descSize, 3);
 	D3D12_BUFFER_SRV buffer;
@@ -189,21 +200,209 @@ void RigidBodyDemo::BuildComputeDescriptorHeaps()
 	DxEngine::Get().CreateUavDescriptor(uavDesc, mVertexOutput.get()->GetD3D12Resource(), mComputeDescHeaps[0]->GetCpuHandle(1));
 
 	DxEngine::Get().CreateSrvDescriptor(srvDesc, mVertexOutput.get()->GetD3D12Resource(), mComputeDescHeaps[1]->GetCpuHandle(0));
-	DxEngine::Get().CreateUavDescriptor(uavDesc, mVertexInput.get()->GetD3D12Resource(), mComputeDescHeaps[1]->GetCpuHandle(1));
+	DxEngine::Get().CreateUavDescriptor(uavDesc, mVertexInput.get()->GetD3D12Resource(), mComputeDescHeaps[1]->GetCpuHandle(1));*/
 }
 
-void RigidBodyDemo::Draw(CommandList& cmdList)
+void RigidBodyDemo::ComputeCall(CommandList& cmdList)
 {
-	//Run Compute
+	//Graphis to Compute Barrier
+	int readSet = 1;
+	const int iteration = 64;
+	int calcNormal = 0;
+
+	cmdList.SetPipelineState(mComputePass->mPSO);
+	cmdList.SetComputeRootSignature(mComputePass->mRootSig);
+	cmdList.SetComputeDynamicConstantBuffer(2, computeDatas);
+	cmdList.SetCompute32BitConstants(3, calcNormal);
+	for (int i = 0; i < iteration; ++i)
+	{
+		readSet = 1 - readSet;
+		if (readSet)
+		{
+			cmdList.SetComputeRootSRV(0, mVertexOutput->GetD3D12Resource()->GetGPUVirtualAddress());
+			cmdList.SetComputeRootUAV(1, mVertexInput->GetD3D12Resource()->GetGPUVirtualAddress());
+		}
+		else
+		{
+			cmdList.SetComputeRootSRV(0, mVertexInput->GetD3D12Resource()->GetGPUVirtualAddress());
+			cmdList.SetComputeRootUAV(1, mVertexOutput->GetD3D12Resource()->GetGPUVirtualAddress());
+		}
+
+		if (i == iteration - 1)
+		{
+			calcNormal = 1;
+			cmdList.SetCompute32BitConstants(3, calcNormal);
+		}
+
+		cmdList.Dispatch(cloth.gridsize.x / 10, cloth.gridsize.y / 10, 1);
+		if (i != iteration - 1)
+		{
+			//Compute To Compute Barrier
+			cmdList.UAVBarrier(*mVertexInput);
+			cmdList.UAVBarrier(*mVertexOutput);
+		}
+	}
+}
+
+void RigidBodyDemo::RenderCall(CommandList& cmdList)
+{
+	auto rtvCpuHandle = mDescriptorHeaps[HeapType::RTV]->GetCpuHandle(mRtvIdx);
+	auto dsvCpuHandle = mDescriptorHeaps[HeapType::DSV]->GetCpuHandle(mDsvIdx);
+
+	float clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
+
+	cmdList.ClearTexture(mRenderTarget.GetTexture(AttachmentPoint::Color0), rtvCpuHandle, clearColor);
+	cmdList.ClearDepthStencilTexture(mRenderTarget.GetTexture(AttachmentPoint::DepthStencil), dsvCpuHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL);
+
+	cmdList.SetPipelineState(mDrawPass->mPSO);
+	cmdList.SetGraphicsRootSignature(mDrawPass->mRootSig);
+
+	cmdList.SetSingleRenderTarget(&rtvCpuHandle, &dsvCpuHandle);
+
+	cmdList.SetViewport(m_Viewport);
+	cmdList.SetScissorRect(m_ScissorRect);
+
+	cmdList.SetGraphics32BitConstants(0, mViewProjection);
+
+	cmdList.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	cmdList.SetVertexBuffer(0, mVertexBufferView);
+	cmdList.SetIndexBuffer(mIndexBuffer);
+	cmdList.DrawIndexed(mClothIndexNum);
 }
 
 void RigidBodyDemo::OnUpdate(UpdateEventArgs& e)
 {
-	
+	IDemo::OnUpdate(e);
+	StartGuiFrame();
+	UpdateGui();
+	XMMATRIX view = XMLoadFloat4x4(&mCamera.GetViewMat());
+	XMMATRIX proj = XMLoadFloat4x4(&mCamera.GetProjMat());
+
+	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+	XMStoreFloat4x4(&mViewProjection, XMMatrixTranspose(viewProj));
+	mCamera.Update(e);
 }
 
 void RigidBodyDemo::OnRender(RenderEventArgs& e)
 {
-	BuildComputeList();
+	IDemo::OnRender(e);
+	auto commandQueue = DxEngine::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+	auto cmdList = commandQueue->GetCommandList();
 
+	
+
+	ComputeCall(*cmdList);
+	RenderCall(*cmdList);
+	DrawGui(*cmdList);
+
+	commandQueue->ExecuteCommandList(cmdList);
+	m_pWindow->Present(mRenderTarget.GetTexture(AttachmentPoint::Color0));
+}
+
+void RigidBodyDemo::OnMouseMoved(MouseMotionEventArgs& e)
+{
+	ImGuiIO& io = ImGui::GetIO();
+	if (io.WantCaptureMouse == false)
+	{
+		int x = e.X;
+		int y = e.Y;
+
+		if (e.LeftButton != 0)
+		{
+			// Make each pixel correspond to a quarter of a degree.
+			float dx = XMConvertToRadians(0.25f * static_cast<float>(x - mLastMousePos.x));
+			float dy = XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
+
+			// Update angles based on input to orbit camera around box.
+			mCamera.mTheta += dx;
+			mCamera.mPhi += dy;
+
+			// Restrict the angle mPhi.
+			mCamera.mPhi = MathHelper::Clamp(mCamera.mPhi, 0.1f, MathHelper::Pi - 0.1f);
+		}
+		else if (e.RightButton != 0)
+		{
+			// Make each pixel correspond to 0.2 unit in the scene.
+			float dx = 0.05f * static_cast<float>(x - mLastMousePos.x);
+			float dy = 0.05f * static_cast<float>(y - mLastMousePos.y);
+
+			// Update the camera radius based on input.
+			mCamera.mRadius += dx - dy;
+
+			// Restrict the radius.
+			mCamera.mRadius = MathHelper::Clamp(mCamera.mRadius, 5.0f, 150.0f);
+		}
+		mLastMousePos.x = x;
+		mLastMousePos.y = y;
+	}
+}
+
+void RigidBodyDemo::OnMouseButtonPressed(MouseButtonEventArgs& e)
+{
+	mLastMousePos.x = e.X;
+	mLastMousePos.y = e.Y;
+
+	ImGuiIO& io = ImGui::GetIO();
+	io.AddMouseButtonEvent(0, true);
+}
+
+void RigidBodyDemo::OnMouseButtonReleased(MouseButtonEventArgs& e)
+{
+	ImGuiIO& io = ImGui::GetIO();
+	io.AddMouseButtonEvent(0, false);
+}
+
+void RigidBodyDemo::InitGui()
+{
+	auto device = DxEngine::Get().GetDevice();
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO GuiIO = ImGui::GetIO(); (void)GuiIO;
+
+	ImGui::StyleColorsDark();
+
+	ImGui_ImplWin32_Init(DxEngine::Get().GetWindowHandle());
+
+	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	desc.NumDescriptors = 1;
+	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	if (device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&mGuiSrvUavCbvHeap)) != S_OK)
+	{
+		assert("Failed to create IMGUI SRV heap");
+	}
+
+	ImGui_ImplDX12_Init(device.Get(), 1,
+		DXGI_FORMAT_R8G8B8A8_UNORM, mGuiSrvUavCbvHeap.Get(),
+		mGuiSrvUavCbvHeap->GetCPUDescriptorHandleForHeapStart(),
+		mGuiSrvUavCbvHeap->GetGPUDescriptorHandleForHeapStart());
+}
+
+void RigidBodyDemo::StartGuiFrame()
+{
+	ImGui_ImplDX12_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+}
+
+void RigidBodyDemo::UpdateGui()
+{
+	ImGui::Begin("GUI");
+	ImGui::End();
+}
+
+void RigidBodyDemo::ClearGui()
+{
+	ImGui_ImplDX12_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
+}
+
+void RigidBodyDemo::DrawGui(CommandList& cmdList)
+{
+	cmdList.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+	cmdList.SetDescriptorHeap(mGuiSrvUavCbvHeap);
+
+	ImGui::Render();
+	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmdList.GetGraphicsCommandList().Get());
 }

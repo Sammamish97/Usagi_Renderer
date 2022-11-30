@@ -422,6 +422,11 @@ void CommandList::SetVertexBuffer(uint32_t slot, const VertexBuffer& vertexBuffe
     TrackResource(vertexBuffer);
 }
 
+void CommandList::SetVertexBuffer(uint32_t slot, D3D12_VERTEX_BUFFER_VIEW& vertexBufferView)
+{
+    m_d3d12CommandList->IASetVertexBuffers(slot, 1, &vertexBufferView);
+}
+
 void CommandList::SetDynamicVertexBuffer(uint32_t slot, size_t numVertices, size_t vertexSize, const void* vertexBufferData)
 {
     size_t bufferSize = numVertices * vertexSize;

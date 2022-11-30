@@ -3,6 +3,7 @@ struct Particle {
 	float4 vel;
 	float4 normal;
 	float pinned;
+    float3 _pad0;
 };
 
 StructuredBuffer<Particle> particleIn : register(t0);
@@ -20,7 +21,7 @@ struct CommonData
 	float sphereRadius;
 	float4 spherePos;
 	float4 gravity;
-	int2 particleCount;
+	float2 particleCount;
 };
 
 cbuffer common : register(b0)
